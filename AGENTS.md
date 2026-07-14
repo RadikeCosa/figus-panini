@@ -46,20 +46,27 @@ Importar respaldo
 
 El álbum canónico del MVP tiene exactamente 980 figuritas:
 
-* Incluye únicamente las figuritas que ocupan espacios en el álbum físico
-  estándar.
+* Incluye una sección `PANINI` con la posición `00`: 1.
+* Incluye una sección `FWC` con posiciones `1..19`: 19.
+* Incluye 48 secciones de selecciones con posiciones `1..20`: 960.
 * Excluye figuritas promocionales, incluidas las de Coca-Cola.
 * Las promocionales no participan del progreso, faltantes, repetidas, búsqueda
   ni backup.
 
-Los códigos son identificadores canónicos, por ejemplo `ARG7`, `USA12` o
-`FWC3` cuando estén confirmados por la fuente del álbum. No usar nombres de
-jugadores como identificadores.
+La identidad mínima de una posición se compone conceptualmente de un
+nombre canónico de sección y un número de posición dentro de esa sección. No
+mantener por ahora campos separados como `sectionId`, `slug` y `displayName`.
 
-No agregar secciones, códigos, jugadores ni metadatos no confirmados. La
-definición del dataset no está completa hasta contar con los 980 códigos,
-secciones y orden confirmado del álbum estándar. No inferir el orden por ranking
-FIFA, grupos, orden alfabético, estructura del torneo ni fuentes no verificadas.
+No agregar nombres canónicos de selecciones, nombres de jugadores ni metadatos
+no confirmados. La definición del dataset no está completa hasta contar con
+`PANINI-00`, `FWC-1..FWC-19`, la lista exacta de las 48 selecciones con sus
+posiciones `1..20`, y una validación que produzca exactamente 980 posiciones
+únicas. No inferir selecciones u orden por ranking FIFA, grupos, orden
+alfabético, estructura del torneo ni fuentes no verificadas.
+
+Una vez que existan colecciones guardadas, el nombre canónico de sección debe
+permanecer estable; cualquier cambio futuro de nombre requiere migración
+explícita. El orden del álbum es dato de presentación, no parte de la identidad.
 
 ## Dominio
 
@@ -294,8 +301,8 @@ actualización de versión y eliminación de cachés obsoletos.
 Priorizar dominio, integridad de datos, persistencia, importación y flujos
 críticos. Cubrir, como mínimo:
 
-* generación del álbum: 980 códigos, unicidad, secciones confirmadas, exclusión
-  de promocionales y orden estable;
+* generación del álbum: 980 posiciones únicas, `PANINI-00`, `FWC-1..FWC-19`, 48
+  selecciones con posiciones `1..20`, exclusión de promocionales y orden estable;
 * cantidades: incremento, decremento sin negativos, cero faltante, uno poseída,
   repetidas como `quantity - 1`;
 * estadísticas: poseídas únicas, faltantes, códigos repetidos, copias repetidas,
