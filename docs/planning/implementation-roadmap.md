@@ -11,7 +11,7 @@ Este documento guía la secuencia de trabajo. No registra trabajo ya realizado n
 
 ## Incrementos
 
-### 1. Fundamentos documentales
+### 0. Fundamentos documentales
 
 - Estado: completado.
 - Objetivo: separar definición del producto, alcance, planificación y decisiones.
@@ -22,18 +22,28 @@ Este documento guía la secuencia de trabajo. No registra trabajo ya realizado n
 - Validaciones esperadas: revisión manual de contenido y enlaces relativos.
 - Documentación que debería actualizarse: este roadmap y, si cambia el criterio editorial, `docs/decisions/README.md`.
 
-### 2. Definición canónica del álbum
+### 1. Definición canónica del álbum
 
-- Estado: bloqueado.
-- Objetivo: establecer la fuente única y validada de las 993 figuritas.
-- Alcance: documentar la estructura oficial del álbum sin inventar códigos, nombres ni orden.
-- Dependencias: confirmación de la fuente canónica.
-- Resultado verificable: existe una definición validada del álbum lista para usar como base de dominio.
-- Criterios de aceptación: no hay datos inferidos ni contradictorios.
-- Validaciones esperadas: revisión de consistencia contra la fuente confirmada.
-- Documentación que debería actualizarse: `docs/product/product-definition.md` y `docs/product/mvp-scope.md`.
+- Estado: en curso.
+- Objetivo: establecer la fuente única y validada de las 980 figuritas estándar.
+- Alcance: documentar la estructura oficial del álbum físico estándar sin inventar códigos, nombres ni orden; las figuritas promocionales quedan fuera del MVP.
+- Dependencias: confirmación de una fuente primaria suficientemente confiable,
+  cobertura verificable de los 980 registros estándar, códigos y orden
+  confirmados.
+- Resultado verificable: existe una definición validada del álbum lista para
+  usar como base de dominio, con trazabilidad hacia la fuente confirmada.
+- Criterios de aceptación: no hay datos inferidos ni contradictorios; el total,
+  los códigos, las secciones y el orden están confirmados; las promocionales
+  están excluidas; el procedimiento de obtención y validación es reproducible.
+- Validaciones esperadas: revisión de consistencia contra la fuente confirmada,
+  conteo total, unicidad de códigos, completitud por sección, orden estable y
+  muestra manual auditada; verificación de que las promocionales no integran el
+  dataset canónico.
+- Documentación que debería actualizarse:
+  `docs/data/album-source-research.md` y, si cambia el alcance confirmado del
+  producto, `docs/product/product-definition.md` y `docs/product/mvp-scope.md`.
 
-### 3. Dominio puro
+### 2. Dominio puro
 
 - Estado: pendiente.
 - Objetivo: modelar álbum y colección con funciones puras y tipos explícitos.
@@ -44,7 +54,7 @@ Este documento guía la secuencia de trabajo. No registra trabajo ya realizado n
 - Validaciones esperadas: tests unitarios de dominio.
 - Documentación que debería actualizarse: `docs/product/product-definition.md` y `docs/product/mvp-scope.md` si cambia el alcance.
 
-### 4. Persistencia con IndexedDB
+### 3. Persistencia con IndexedDB
 
 - Estado: pendiente.
 - Objetivo: guardar y recuperar la colección localmente.
@@ -55,7 +65,7 @@ Este documento guía la secuencia de trabajo. No registra trabajo ya realizado n
 - Validaciones esperadas: tests de persistencia e importación/exportación.
 - Documentación que debería actualizarse: `docs/product/mvp-scope.md` y, si aparece una decisión técnica, `docs/decisions/`.
 
-### 5. Shell y navegación mobile-first
+### 4. Shell y navegación mobile-first
 
 - Estado: pendiente.
 - Objetivo: crear la estructura visible mínima para navegar el MVP desde celular.
@@ -66,7 +76,7 @@ Este documento guía la secuencia de trabajo. No registra trabajo ya realizado n
 - Validaciones esperadas: revisión visual y pruebas básicas de interacción.
 - Documentación que debería actualizarse: `docs/product/mvp-scope.md`.
 
-### 6. Flujo principal del álbum
+### 5. Flujo principal del álbum
 
 - Estado: pendiente.
 - Objetivo: permitir revisar el álbum y corregir cantidades sin perder contexto.
@@ -77,7 +87,7 @@ Este documento guía la secuencia de trabajo. No registra trabajo ya realizado n
 - Validaciones esperadas: pruebas de flujo y regresión de edición.
 - Documentación que debería actualizarse: `docs/product/mvp-scope.md`.
 
-### 7. Entrada rápida
+### 6. Entrada rápida
 
 - Estado: pendiente.
 - Objetivo: registrar figuritas nuevas con el menor número posible de pasos.
@@ -88,7 +98,7 @@ Este documento guía la secuencia de trabajo. No registra trabajo ya realizado n
 - Validaciones esperadas: pruebas de interacción y persistencia.
 - Documentación que debería actualizarse: `docs/product/mvp-scope.md`.
 
-### 8. Faltantes y repetidas
+### 7. Faltantes y repetidas
 
 - Estado: pendiente.
 - Objetivo: facilitar consultas y exportación de listas derivadas.
@@ -99,7 +109,7 @@ Este documento guía la secuencia de trabajo. No registra trabajo ya realizado n
 - Validaciones esperadas: tests de listas derivadas y formato.
 - Documentación que debería actualizarse: `docs/product/mvp-scope.md`.
 
-### 9. Respaldo, restauración y PWA
+### 8. Respaldo, restauración y PWA
 
 - Estado: pendiente.
 - Objetivo: cubrir exportación/importación confiable y la base progresiva de uso offline.
@@ -110,7 +120,7 @@ Este documento guía la secuencia de trabajo. No registra trabajo ya realizado n
 - Validaciones esperadas: tests de importación/exportación y verificación manual de offline.
 - Documentación que debería actualizarse: `docs/product/mvp-scope.md` y, si aparecen decisiones técnicas, `docs/decisions/`.
 
-### 10. Estabilización final
+### 9. Estabilización final
 
 - Estado: pendiente.
 - Objetivo: cerrar inconsistencias, validar supuestos y preparar el MVP para uso real.

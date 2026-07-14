@@ -45,9 +45,9 @@ Usar nombres ordenados y estables, por ejemplo:
 - `001-nombre-de-la-decision.md`;
 - `002-otra-decision.md`.
 
-## Índice inicial
+## Índice
 
-Por ahora el índice queda vacío. No crear registros individuales si solo repetirían reglas ya establecidas en `AGENTS.md` o en los documentos de producto y alcance.
+- [001. Excluir figuritas promocionales](001-excluir-figuritas-promocionales.md)
 
 ## Relación con otros documentos
 

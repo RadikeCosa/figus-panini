@@ -21,6 +21,7 @@
 - Social, rankings o comparación entre usuarios.
 - Múltiples álbumes.
 - Cualquier metadato del álbum que no esté confirmado por una fuente canónica.
+- Figuritas promocionales, incluidas las de Coca-Cola.
 
 ## Flujos principales
 
@@ -66,14 +67,16 @@ Pedro importa un respaldo validado y reemplaza la colección actual de forma at�
 ## Criterios generales de aceptación
 
 - La colección puede consultarse y editarse sin perder datos.
+- El progreso general usa como denominador las 980 figuritas del álbum físico estándar.
 - Las cantidades no se vuelven negativas.
 - Faltantes y repetidas se derivan de la cantidad real, no de flags guardados.
+- Las figuritas promocionales no afectan progreso, faltantes, repetidas, búsqueda ni backup.
 - Exportar e importar no altera datos inválidos ni deja estados parciales.
 - El estado visible coincide con la persistencia local.
 
 ## Preguntas abiertas
 
-- Fuente canónica de las 993 figuritas: pendiente de confirmación.
+- Fuente completa para códigos, secciones y orden de las 980 figuritas estándar: pendiente de confirmación.
 - Orden y nombres completos de las secciones: pendiente de confirmación.
 - Formato exacto del backup técnico: pendiente de definición final si cambia respecto de la base actual.
 

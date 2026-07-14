@@ -28,7 +28,13 @@ La app ofrece una forma simple de seguir la colección desde el celular, con foc
 
 ### Definición del álbum
 
-La definición del álbum es el catálogo canónico de figuritas válidas del proyecto. Su fuente exacta y completa aún debe confirmarse en la documentación del dominio.
+La definición del álbum es el catálogo canónico de las 980 figuritas válidas del
+MVP. Incluye únicamente las posiciones del álbum físico estándar. Las figuritas
+promocionales, incluidas las de Coca-Cola, quedan fuera de la colección principal
+y no participan del progreso, faltantes, repetidas, búsqueda ni backup.
+
+Los códigos, secciones y orden completos aún deben confirmarse en la
+documentación del dominio antes de construir el dataset.
 
 ### Colección del usuario
 
@@ -63,7 +69,8 @@ La app debe dejar ver el estado de la colección con rapidez, permitir ajustes s
 - No es una red social.
 - No es una plataforma con cuentas o sincronización remota.
 - No es un sistema general de gestión de colecciones.
-- No define todavía la fuente canónica completa del álbum ni inventa datos faltantes.
+- No incluye figuritas promocionales como parte de la colección principal.
+- No define todavía códigos, secciones ni orden completos del álbum ni inventa datos faltantes.
 
 ## Relación con otros documentos
 

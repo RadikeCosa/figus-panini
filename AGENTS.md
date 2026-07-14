@@ -44,19 +44,22 @@ Importar respaldo
 
 ## Álbum
 
-El álbum tiene exactamente 993 figuritas:
+El álbum canónico del MVP tiene exactamente 980 figuritas:
 
-* 48 selecciones nacionales, 20 figuritas cada una: 960.
-* FIFA World Cup: `FWC1..FWC19`: 19.
-* Coca-Cola: `CC1..CC14`: 14.
+* Incluye únicamente las figuritas que ocupan espacios en el álbum físico
+  estándar.
+* Excluye figuritas promocionales, incluidas las de Coca-Cola.
+* Las promocionales no participan del progreso, faltantes, repetidas, búsqueda
+  ni backup.
 
-Los códigos son identificadores canónicos, por ejemplo `ARG7`, `USA12`, `FWC3`
-y `CC9`. No usar nombres de jugadores como identificadores.
+Los códigos son identificadores canónicos, por ejemplo `ARG7`, `USA12` o
+`FWC3` cuando estén confirmados por la fuente del álbum. No usar nombres de
+jugadores como identificadores.
 
 No agregar secciones, códigos, jugadores ni metadatos no confirmados. La
-definición del dataset no está completa hasta contar con los 48 códigos, nombres
-y orden confirmado de las selecciones. No inferir el orden por ranking FIFA,
-grupos, orden alfabético, estructura del torneo ni fuentes no verificadas.
+definición del dataset no está completa hasta contar con los 980 códigos,
+secciones y orden confirmado del álbum estándar. No inferir el orden por ranking
+FIFA, grupos, orden alfabético, estructura del torneo ni fuentes no verificadas.
 
 ## Dominio
 
@@ -171,7 +174,7 @@ Nunca ejecutar contenido del archivo importado.
 
 Resumen:
 
-* mostrar poseídas únicas, total `993`, porcentaje, faltantes, códigos
+* mostrar poseídas únicas, total `980`, porcentaje, faltantes, códigos
   repetidos, copias para cambiar y progreso visual;
 * dar acceso rápido a entrada de figuritas, faltantes y repetidas.
 
@@ -291,8 +294,8 @@ actualización de versión y eliminación de cachés obsoletos.
 Priorizar dominio, integridad de datos, persistencia, importación y flujos
 críticos. Cubrir, como mínimo:
 
-* generación del álbum: 993 códigos, unicidad, 48 selecciones, rangos, FWC, CC y
-  orden estable;
+* generación del álbum: 980 códigos, unicidad, secciones confirmadas, exclusión
+  de promocionales y orden estable;
 * cantidades: incremento, decremento sin negativos, cero faltante, uno poseída,
   repetidas como `quantity - 1`;
 * estadísticas: poseídas únicas, faltantes, códigos repetidos, copias repetidas,
@@ -308,7 +311,7 @@ Evitar tests frágiles atados a clases CSS, HTML accidental o nombres internos.
 
 ## Rendimiento y privacidad
 
-El álbum tiene 993 figuritas: evitar optimización prematura.
+El álbum tiene 980 figuritas: evitar optimización prematura.
 
 * No regenerar el álbum completo en cada render.
 * No hacer una consulta IndexedDB por figurita renderizada.
