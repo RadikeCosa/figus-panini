@@ -164,8 +164,8 @@ El porcentaje se redondea sin decimales.
 
 ## Consulta rápida
 
-El dashboard incluye un formulario de solo lectura para consultar una posición
-del álbum con entradas como:
+El dashboard incluye un formulario para consultar una posición puntual del álbum
+con entradas como:
 
 - `Argentina 7`;
 - `México 12`;
@@ -174,7 +174,10 @@ del álbum con entradas como:
 - `Corea del Sur 18`.
 
 El formulario usa la `CollectionState` ya cargada en memoria. Consultar no
-vuelve a llamar a IndexedDB, no guarda datos y no modifica cantidades.
+vuelve a llamar a IndexedDB ni modifica cantidades por sí mismo. Cuando la
+consulta resuelve una posición válida, la tarjeta de resultado permite aplicar
+acciones contextuales sobre esa misma figurita y guardar la colección completa
+con `CollectionRepository.save()`.
 
 La UI delega en el dominio:
 
@@ -200,6 +203,27 @@ El resultado se anuncia en una región `aria-live` y distingue:
 - faltante: `No la tenés.`;
 - pegada sin repetidas: `La tenés.`;
 - pegada con repetidas: `La tenés repetida.`.
+
+Las acciones disponibles dependen de la cantidad actual:
+
+- cantidad `0`: `Agregar figurita`;
+- cantidad `1`: `Agregar otra copia`;
+- cantidad `2` o más: `Agregar otra copia` y `Entregué una`.
+
+La acción `Entregué una` solo resta copias repetidas: está disponible cuando la
+cantidad total es mayor que `1` y no elimina la copia principal.
+
+Al mutar desde el resultado, el dashboard conserva la colección anterior,
+calcula la siguiente con funciones puras del dominio, actualiza la UI mientras
+guarda, bloquea input/consulta/acciones durante el guardado y confirma solo
+después de `save()`. Si el guardado falla, restaura la colección anterior,
+mantiene visible la posición consultada y permite reintentar.
+
+Cada mutación exitosa desde la tarjeta deja disponible un `Deshacer` acotado a
+esa última operación visible. No es un historial general: una nueva operación
+exitosa reemplaza la acción deshacible anterior. Deshacer persiste nuevamente la
+colección restaurada; si falla, se conserva el estado actual y el intento de
+deshacer queda disponible.
 
 Las sugerencias de sección provienen del dataset canónico, no de una lista
 duplicada en UI. Incluyen `PANINI`, `FWC` y las 48 selecciones.
@@ -459,9 +483,10 @@ Carga explícita frente a asumir colección vacía:
 mostrar loading evita datos falsos mientras IndexedDB abre. El costo es un
 estado visual adicional.
 
-Consulta de solo lectura frente a entrada rápida:
-la consulta del inicio permite verificar estado sin escribir datos; entrada
-rápida separa esa acción de la carga persistida para mantener el resumen simple.
+Consulta puntual con acción contextual frente a entrada rápida:
+la consulta del inicio resuelve una figurita y permite actuar sobre ese único
+resultado. `/quick-entry` sigue siendo el flujo optimizado para cargar varias
+figuritas consecutivas, limpiar el campo y sostener una cadencia de paquete.
 
 Bloqueo breve de edición frente a cola de mutaciones:
 durante `repository.save()` los controles de cantidad quedan deshabilitados.

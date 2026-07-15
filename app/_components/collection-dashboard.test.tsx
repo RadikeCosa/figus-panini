@@ -1,10 +1,16 @@
 /**
  * @vitest-environment jsdom
  */
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+} from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   createEmptyCollection,
+  getCopies,
   setCopies,
   type CollectionState,
 } from "../../domain/collection/collection";
@@ -318,6 +324,260 @@ describe("CollectionDashboard", () => {
     expect(metricValue("Repetidas")).toBe("2");
   });
 
+  it("adds a missing queried position and updates the result and metrics", async () => {
+    const save = vi.fn<CollectionRepository["save"]>().mockResolvedValue(undefined);
+    const repository = fakeRepository(createEmptyCollection(), save);
+
+    render(<CollectionDashboard createRepository={() => repository} />);
+
+    await screen.findByText("0 / 980");
+    submitLookup("Argentina 7");
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Agregar figurita de Argentina 7" }),
+    );
+
+    expect(await screen.findByText("Cambio guardado.")).toBeTruthy();
+    expect(screen.getByText("La tenés.")).toBeTruthy();
+    expect(screen.getByText("1 copia.")).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "Agregar otra copia de Argentina 7" }),
+    ).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Deshacer" })).toBeTruthy();
+    expect(screen.getByText("1 / 980")).toBeTruthy();
+    expect(metricValue("Pegadas")).toBe("1");
+    expect(metricValue("Faltantes")).toBe("979");
+    expect(save).toHaveBeenCalledTimes(1);
+    expect(getCopies(save.mock.calls[0][0], argentina7)).toBe(1);
+  });
+
+  it("adds another copy to an owned queried position and shows repeated state", async () => {
+    const save = vi.fn<CollectionRepository["save"]>().mockResolvedValue(undefined);
+    const repository = fakeRepository(setCopies(createEmptyCollection(), argentina7, 1), save);
+
+    render(<CollectionDashboard createRepository={() => repository} />);
+
+    await screen.findByText("1 / 980");
+    submitLookup("Argentina 7");
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Agregar otra copia de Argentina 7" }),
+    );
+
+    expect(await screen.findByText("Cambio guardado.")).toBeTruthy();
+    expect(screen.getByText("La tenés repetida.")).toBeTruthy();
+    expect(screen.getByText("2 copias en total · 1 repetida.")).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "Entregué una copia de Argentina 7" }),
+    ).toBeTruthy();
+    expect(metricValue("Pegadas")).toBe("1");
+    expect(metricValue("Faltantes")).toBe("979");
+    expect(metricValue("Repetidas")).toBe("1");
+    expect(getCopies(save.mock.calls[0][0], argentina7)).toBe(2);
+  });
+
+  it("registers that a repeated copy was given without removing the main copy", async () => {
+    const save = vi.fn<CollectionRepository["save"]>().mockResolvedValue(undefined);
+    const repository = fakeRepository(setCopies(createEmptyCollection(), panini, 2), save);
+
+    render(<CollectionDashboard createRepository={() => repository} />);
+
+    await screen.findByText("1 / 980");
+    submitLookup("PANINI 00");
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Entregué una copia de PANINI 00" }),
+    );
+
+    expect(await screen.findByText("Cambio guardado.")).toBeTruthy();
+    expect(screen.getByText("La tenés.")).toBeTruthy();
+    expect(screen.getByText("1 copia.")).toBeTruthy();
+    expect(
+      screen.queryByRole("button", { name: "Entregué una copia de PANINI 00" }),
+    ).toBeNull();
+    expect(metricValue("Repetidas")).toBe("0");
+    expect(getCopies(save.mock.calls[0][0], panini)).toBe(1);
+  });
+
+  it("blocks lookup controls and actions while saving", async () => {
+    let resolveSave: (() => void) | null = null;
+    const save = vi.fn<CollectionRepository["save"]>(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveSave = resolve;
+        }),
+    );
+    const repository = fakeRepository(createEmptyCollection(), save);
+
+    render(<CollectionDashboard createRepository={() => repository} />);
+
+    await screen.findByText("0 / 980");
+    submitLookup("Argentina 7");
+    const addButton = await screen.findByRole("button", {
+      name: "Agregar figurita de Argentina 7",
+    });
+
+    fireEvent.click(addButton);
+    fireEvent.click(addButton);
+
+    expect(await screen.findByText("Guardando cambio...")).toBeTruthy();
+    expect((screen.getByLabelText("Sección y número") as HTMLInputElement).disabled).toBe(
+      true,
+    );
+    expect((screen.getByRole("button", { name: "Consultar" }) as HTMLButtonElement).disabled).toBe(
+      true,
+    );
+    expect((addButton as HTMLButtonElement).disabled).toBe(true);
+    expect(save).toHaveBeenCalledTimes(1);
+
+    resolveSave?.();
+    expect(await screen.findByText("Cambio guardado.")).toBeTruthy();
+  });
+
+  it("rolls back on save error while keeping the queried result visible for retry", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const save = vi.fn<CollectionRepository["save"]>().mockRejectedValue(new Error("boom"));
+    const load = vi.fn<() => Promise<CollectionState>>().mockResolvedValue(createEmptyCollection());
+    const repository: CollectionRepository = {
+      load,
+      save,
+      clear: async () => undefined,
+    };
+
+    render(<CollectionDashboard createRepository={() => repository} />);
+
+    await screen.findByText("0 / 980");
+    submitLookup("Argentina 7");
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Agregar figurita de Argentina 7" }),
+    );
+
+    expect((await screen.findByRole("alert")).textContent).toContain(
+      "No fue posible guardar el cambio. Reintentá la acción.",
+    );
+    expect(screen.getByText("Argentina 7")).toBeTruthy();
+    expect(screen.getByText("No la tenés.")).toBeTruthy();
+    expect(screen.getByText("0 copias.")).toBeTruthy();
+    expect(metricValue("Pegadas")).toBe("0");
+    expect(metricValue("Faltantes")).toBe("980");
+    expect(
+      screen.getByRole("button", { name: "Agregar figurita de Argentina 7" }),
+    ).toBeTruthy();
+    expect(load).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not load again after mutating from the lookup result", async () => {
+    const load = vi.fn<() => Promise<CollectionState>>().mockResolvedValue(createEmptyCollection());
+    const repository: CollectionRepository = {
+      load,
+      save: vi.fn<CollectionRepository["save"]>().mockResolvedValue(undefined),
+      clear: vi.fn<CollectionRepository["clear"]>().mockResolvedValue(undefined),
+    };
+
+    render(<CollectionDashboard createRepository={() => repository} />);
+
+    await screen.findByText("0 / 980");
+    submitLookup("Argentina 7");
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Agregar figurita de Argentina 7" }),
+    );
+    expect(await screen.findByText("Cambio guardado.")).toBeTruthy();
+
+    expect(load).toHaveBeenCalledTimes(1);
+    expect(repository.save).toHaveBeenCalledTimes(1);
+  });
+
+  it("undoes adding a missing queried position and persists the restored state", async () => {
+    const save = vi.fn<CollectionRepository["save"]>().mockResolvedValue(undefined);
+    const repository = fakeRepository(createEmptyCollection(), save);
+
+    render(<CollectionDashboard createRepository={() => repository} />);
+
+    await screen.findByText("0 / 980");
+    submitLookup("Argentina 7");
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Agregar figurita de Argentina 7" }),
+    );
+    expect(await screen.findByText("Cambio guardado.")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Deshacer" }));
+
+    expect(await screen.findByText("Cambio deshecho.")).toBeTruthy();
+    expect(screen.getByText("No la tenés.")).toBeTruthy();
+    expect(screen.getByText("0 copias.")).toBeTruthy();
+    expect(metricValue("Pegadas")).toBe("0");
+    expect(metricValue("Faltantes")).toBe("980");
+    expect(save).toHaveBeenCalledTimes(2);
+    expect(getCopies(save.mock.calls[1][0], argentina7)).toBe(0);
+  });
+
+  it("undoes adding another copy to an owned queried position", async () => {
+    const save = vi.fn<CollectionRepository["save"]>().mockResolvedValue(undefined);
+    const repository = fakeRepository(setCopies(createEmptyCollection(), argentina7, 1), save);
+
+    render(<CollectionDashboard createRepository={() => repository} />);
+
+    await screen.findByText("1 / 980");
+    submitLookup("Argentina 7");
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Agregar otra copia de Argentina 7" }),
+    );
+    expect(await screen.findByText("La tenés repetida.")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Deshacer" }));
+
+    expect(await screen.findByText("Cambio deshecho.")).toBeTruthy();
+    expect(screen.getByText("La tenés.")).toBeTruthy();
+    expect(screen.getByText("1 copia.")).toBeTruthy();
+    expect(metricValue("Repetidas")).toBe("0");
+    expect(getCopies(save.mock.calls[1][0], argentina7)).toBe(1);
+  });
+
+  it("undoes giving a repeated copy", async () => {
+    const save = vi.fn<CollectionRepository["save"]>().mockResolvedValue(undefined);
+    const repository = fakeRepository(setCopies(createEmptyCollection(), panini, 2), save);
+
+    render(<CollectionDashboard createRepository={() => repository} />);
+
+    await screen.findByText("1 / 980");
+    submitLookup("PANINI 00");
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Entregué una copia de PANINI 00" }),
+    );
+    expect(await screen.findByText("La tenés.")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Deshacer" }));
+
+    expect(await screen.findByText("Cambio deshecho.")).toBeTruthy();
+    expect(screen.getByText("La tenés repetida.")).toBeTruthy();
+    expect(screen.getByText("2 copias en total · 1 repetida.")).toBeTruthy();
+    expect(metricValue("Repetidas")).toBe("1");
+    expect(getCopies(save.mock.calls[1][0], panini)).toBe(2);
+  });
+
+  it("keeps undo available when persisting the undo fails", async () => {
+    const save = vi
+      .fn<CollectionRepository["save"]>()
+      .mockResolvedValueOnce(undefined)
+      .mockRejectedValueOnce(new Error("boom"));
+    const repository = fakeRepository(createEmptyCollection(), save);
+
+    render(<CollectionDashboard createRepository={() => repository} />);
+
+    await screen.findByText("0 / 980");
+    submitLookup("Argentina 7");
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Agregar figurita de Argentina 7" }),
+    );
+    expect(await screen.findByText("Cambio guardado.")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Deshacer" }));
+
+    expect((await screen.findByRole("alert")).textContent).toContain(
+      "No fue posible deshacer el cambio. Reintentá deshacer.",
+    );
+    expect(screen.getByText("La tenés.")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Deshacer" })).toBeTruthy();
+    expect(getCopies(save.mock.calls[1][0], argentina7)).toBe(0);
+  });
+
   it("works after retrying a failed load", async () => {
     vi.spyOn(console, "error").mockImplementation(() => undefined);
     const load = vi
@@ -362,10 +622,13 @@ describe("initial navigation", () => {
 
 });
 
-function fakeRepository(collection: CollectionState): CollectionRepository {
+function fakeRepository(
+  collection: CollectionState,
+  save: CollectionRepository["save"] = async () => undefined,
+): CollectionRepository {
   return {
     load: async () => collection,
-    save: async () => undefined,
+    save,
     clear: async () => undefined,
   };
 }

@@ -74,8 +74,8 @@ Este documento guía la secuencia de trabajo. No registra trabajo ya realizado n
 - Estado: completado.
 - Objetivo: crear la estructura visible mínima para navegar el MVP desde celular.
 - Alcance: navegación principal, layout responsive, carga inicial, resumen real y
-  consulta rápida de figuritas de solo lectura con sugerencias progresivas de
-  sección.
+  consulta rápida de figuritas con acción contextual sobre el resultado y
+  sugerencias progresivas de sección.
 - Dependencias: dominio y persistencia base.
 - Resultado verificable: la app se puede recorrer con una jerarquía clara y mobile-first.
 - Criterios de aceptación: navegación simple, foco visible, resumen derivado del
@@ -98,12 +98,14 @@ Este documento guía la secuencia de trabajo. No registra trabajo ya realizado n
 #### 4B. Resumen funcional y consulta rápida
 
 - Estado: completado.
-- Alcance: mantener el resumen global, agregar consulta rápida de solo lectura
-  por sección y número, resolver secciones canónicas con normalización y mostrar
-  estado faltante, pegada o repetida desde la colección cargada.
+- Alcance: mantener el resumen global, agregar consulta rápida por sección y
+  número, resolver secciones canónicas con normalización, mostrar estado
+  faltante, pegada o repetida desde la colección cargada y permitir agregar o
+  entregar una repetida desde el resultado.
 - Resultado verificable: `/` permite consultar entradas como `Argentina 7`,
-  `México 12`, `PANINI 00`, `FWC 4` o `Corea del Sur 18` sin recargar ni guardar
-  colección.
+  `México 12`, `PANINI 00`, `FWC 4` o `Corea del Sur 18` sin recargar la
+  colección; si la posición es válida, permite guardar una mutación contextual
+  y deshacer la última operación exitosa desde esa tarjeta.
 - Validaciones esperadas: tests de dominio y UI con repositorio inyectado, lint,
   build y validación manual en navegador.
 
@@ -114,7 +116,7 @@ Este documento guía la secuencia de trabajo. No registra trabajo ya realizado n
   escribe la sección, con coincidencia normalizada, límite de resultados,
   selección por click o teclado y conservación del número ya escrito.
 - Resultado verificable: el campo sugiere `PANINI`, `FWC` y selecciones desde el
-  dataset canónico sin recargar ni guardar colección.
+  dataset canónico sin recargar la colección ni disparar guardados.
 - Validaciones esperadas: tests de dominio y UI con repositorio inyectado, lint,
   build y validación breve en navegador mobile.
 

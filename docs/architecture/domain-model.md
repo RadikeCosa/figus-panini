@@ -181,11 +181,13 @@ La validación de existencia se deriva del álbum canónico:
 
 Cuando la posición existe, el dominio devuelve su identidad canónica y el estado
 en una `CollectionState`: cantidad total de copias, copias repetidas y estado
-`missing`, `owned` o `duplicate`. Esta operación es de solo lectura y no guarda
-ni modifica la colección.
+`missing`, `owned` o `duplicate`. Esta operación de consulta es pura y no guarda
+ni modifica la colección; las pantallas que ofrecen una acción posterior aplican
+operaciones explícitas como `addCopy` o `removeCopy`.
 
-La misma lógica se reutiliza en entrada rápida, donde la escritura queda
-separada en una acción explícita posterior a la consulta.
+La misma lógica se reutiliza en entrada rápida y en la consulta contextual del
+dashboard, donde la escritura queda separada en una acción explícita posterior a
+la consulta.
 
 ## 8. Operaciones Disponibles
 

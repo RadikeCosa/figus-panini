@@ -43,8 +43,9 @@ El sistema vigente separa estas responsabilidades:
 La frontera importante es que la UI no debe abrir bases IndexedDB ni leer object
 stores. Debe pedir una colección al repositorio, aplicar cambios con funciones
 puras del dominio y guardar el nuevo estado mediante el repositorio. Las
-consultas de solo lectura usan la colección cargada en memoria y no vuelven a
-consultar IndexedDB.
+consultas usan la colección cargada en memoria y no vuelven a consultar
+IndexedDB; si una consulta habilita una acción contextual, esa acción persiste
+la colección completa mediante `CollectionRepository.save()`.
 
 ## Contrato del repositorio
 
