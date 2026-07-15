@@ -37,7 +37,6 @@ Para cambiar
 Cantidad
 Agregar
 Quitar
-Copiar lista
 Exportar respaldo
 Importar respaldo
 ```
@@ -57,12 +56,11 @@ La identidad mínima de una posición se compone conceptualmente de un
 nombre canónico de sección y un número de posición dentro de esa sección. No
 mantener por ahora campos separados como `sectionId`, `slug` y `displayName`.
 
-No agregar nombres canónicos de selecciones, nombres de jugadores ni metadatos
-no confirmados. La definición del dataset no está completa hasta contar con
-`PANINI-00`, `FWC-1..FWC-19`, la lista exacta de las 48 selecciones con sus
-posiciones `1..20`, y una validación que produzca exactamente 980 posiciones
-únicas. No inferir selecciones u orden por ranking FIFA, grupos, orden
-alfabético, estructura del torneo ni fuentes no verificadas.
+No agregar nombres de jugadores ni metadatos no confirmados. La definición
+canónica vigente ya contiene `PANINI-00`, `FWC-1..FWC-19`, la lista exacta de
+las 48 selecciones con sus posiciones `1..20`, orden estable y validación de
+980 posiciones únicas. No inferir cambios de selecciones u orden por ranking
+FIFA, grupos, orden alfabético, estructura del torneo ni fuentes no verificadas.
 
 Una vez que existan colecciones guardadas, el nombre canónico de sección debe
 permanecer estable; cualquier cambio futuro de nombre requiere migración
@@ -73,35 +71,23 @@ explícita. El orden del álbum es dato de presentación, no parte de la identid
 Separar siempre la definición estática del álbum de la colección de Pedro.
 
 ```ts
-type AlbumSection = {
-  code: string;
-  name: string;
-  order: number;
-  firstNumber: number;
-  lastNumber: number;
-  type: "team" | "world-cup" | "sponsor";
+type AlbumPosition = {
+  section: string;
+  position: string;
+  globalOrder: number;
 };
 
-type StickerDefinition = {
-  code: string;
-  sectionCode: string;
-  number: number;
-  order: number;
-};
-
-type CollectionEntry = {
-  stickerCode: string;
-  quantity: number;
-  updatedAt: string;
+type CollectionState = {
+  copiesByPosition: Record<PositionKey, number>;
 };
 ```
 
 Reglas de colección:
 
-* Normalizar códigos con `trim()` y `toUpperCase()`.
+* Resolver secciones con normalización de espacios, mayúsculas y acentos.
 * Validar contra la definición real del álbum, no solo con regex.
-* `quantity` es un entero no negativo.
-* `updatedAt` es ISO 8601 y representa la última modificación persistida.
+* La cantidad de copias es un entero no negativo.
+* No persistir entradas con cantidad `0`.
 * No persistir flags derivados como `owned`, `missing`, `hasSticker`,
   `isDuplicate`, `hasDuplicates` o `duplicateQuantity`.
 
@@ -129,12 +115,8 @@ directamente de IndexedDB; usar una abstracción simple:
 
 ```ts
 interface CollectionRepository {
-  getAll(): Promise<CollectionEntry[]>;
-  getQuantity(stickerCode: string): Promise<number>;
-  increment(stickerCode: string): Promise<void>;
-  decrement(stickerCode: string): Promise<void>;
-  setQuantity(stickerCode: string, quantity: number): Promise<void>;
-  replaceAll(entries: CollectionEntry[]): Promise<void>;
+  load(): Promise<CollectionState>;
+  save(collection: CollectionState): Promise<void>;
   clear(): Promise<void>;
 }
 ```
@@ -158,19 +140,18 @@ La app debe poder exportar e importar un respaldo técnico validado. Formato bas
 
 ```ts
 type CollectionBackup = {
-  version: 1;
+  type: "figus-pani-backup";
+  formatVersion: 1;
   exportedAt: string;
-  albumId: "panini-world-cup-2026";
-  ownerName?: string;
-  entries: CollectionEntry[];
+  copiesByPosition: Record<PositionKey, number>;
 };
 ```
 
 Importar backups como datos no confiables:
 
 * parsear JSON;
-* validar estructura, `version` y `albumId`;
-* normalizar y validar códigos contra el álbum;
+* validar estructura, `type`, `formatVersion` y `exportedAt`;
+* normalizar y validar claves técnicas contra el álbum;
 * rechazar cantidades negativas, decimales o no numéricas;
 * rechazar entradas duplicadas ambiguas;
 * reemplazar de forma atómica, sin merge silencioso ni cambios parciales.
@@ -195,7 +176,7 @@ Resumen:
 Entrada rápida:
 
 * flujo principal para abrir paquetes;
-* seleccionar sección y número, o ingresar código directo como método secundario;
+* ingresar sección y número con sugerencias canónicas;
 * sumar una copia y persistir inmediatamente;
 * mostrar feedback claro y permitir deshacer ingresos recientes;
 * la lista temporal de ingresos recientes es historial visual, no transacción
@@ -206,28 +187,22 @@ Repetidas:
 * incluir solo `quantity > 1`;
 * agrupar por sección, respetar orden del álbum, buscar y filtrar;
 * mostrar copias para cambiar (`quantity - 1`), no cantidad total;
-* copiar formato compacto, por ejemplo `ARG: 4x2, 11, 18x3`.
 
 Faltantes:
 
 * incluir todas las figuritas del álbum que no tengan una entrada persistida o
   cuya cantidad efectiva sea cero;
 * agrupar por sección, respetar orden del álbum, buscar y filtrar;
-* copiar formato compacto, por ejemplo `ARG: 3, 7, 15`.
 
-Más/Ajustes:
-
-* puede incluir propietario, respaldo, último respaldo, limpiar colección e
-  información básica;
-* toda acción destructiva requiere confirmación explícita.
-
-Navegación sugerida:
+Navegación vigente:
 
 ```text
 Resumen
 Álbum
+Carga rápida
+Faltantes
 Repetidas
-Más
+Respaldo
 ```
 
 La entrada rápida debe quedar siempre fácil de alcanzar. Evitar navegación
@@ -245,7 +220,7 @@ profunda y cuidar que el botón Atrás sea predecible.
 Mensajes visibles deben ser claros, por ejemplo:
 
 ```text
-El código ARG21 no existe en este álbum.
+Argentina 21 no existe en este álbum.
 No se pudo abrir el respaldo.
 El archivo no corresponde a este álbum.
 No fue posible guardar el cambio.
@@ -278,9 +253,9 @@ validateStickerCode(code, album);
 
 ## PWA
 
-La PWA se implementa después de estabilizar el núcleo de la app.
+La PWA ya existe como mejora progresiva local/offline.
 
-Alcance inicial:
+Alcance vigente:
 
 * manifest válido;
 * iconos;
@@ -390,9 +365,10 @@ Después:
 5. Resumen.
 6. Vista de álbum y edición de cantidades.
 7. Entrada rápida.
-8. Faltantes, repetidas y copiado de listas.
+8. Faltantes y repetidas.
 9. Backup y restauración.
 10. Manifest, iconos, service worker y validación offline.
+11. Estabilización final.
 
 ## Regla de decisión
 

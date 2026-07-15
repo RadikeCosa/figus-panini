@@ -107,9 +107,6 @@ Estas vistas no implementan:
 
 - edición de cantidades;
 - copiado de listas;
-- exportación o importación;
-- backup o restauración;
-- PWA;
 - enlaces a posición individual dentro del álbum.
 
 ## Relación con otros documentos

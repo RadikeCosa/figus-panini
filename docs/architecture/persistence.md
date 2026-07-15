@@ -17,6 +17,7 @@ Queda fuera de su responsabilidad:
 - definir las 980 posiciones del álbum;
 - calcular progreso, faltantes o repetidas;
 - manejar UI, estado React o rutas;
+- cachear el shell PWA o assets estáticos;
 - sincronizar entre dispositivos o usuarios.
 
 ## Fronteras arquitectónicas
@@ -36,6 +37,8 @@ El sistema vigente separa estas responsabilidades:
   directamente a IndexedDB.
 - Backup: `domain/backup/collection-backup.ts` define un contrato JSON externo
   separado del formato interno de IndexedDB.
+- PWA: el service worker cachea shell y assets, pero no lee ni persiste la
+  colección.
 
 La frontera importante es que la UI no debe abrir bases IndexedDB ni leer object
 stores. Debe pedir una colección al repositorio, aplicar cambios con funciones
@@ -221,6 +224,17 @@ cuando se llama a `load`, `save` o `clear`.
 El adaptador debe instanciarse y usarse únicamente en un contexto donde exista
 IndexedDB. Si se ejecuta sin IndexedDB, falla con un error claro.
 
+## Relación con PWA
+
+El funcionamiento offline no cambia el contrato de persistencia. Cuando la app
+se abre desde Cache Storage o sin red, las pantallas siguen cargando y guardando
+la colección mediante IndexedDB.
+
+El service worker no debe cachear la colección ni respaldos generados por el
+usuario. Cache Storage guarda únicamente el shell, rutas principales, manifest,
+iconos y assets locales necesarios para ejecutar la app. IndexedDB conserva el
+estado mutable y no se elimina al instalar o actualizar el service worker.
+
 ## Tests
 
 Los tests de persistencia usan `fake-indexeddb` para ejecutar la API IndexedDB en
@@ -262,6 +276,7 @@ IndexedDB.
 - La UI no accede directamente a IndexedDB.
 - El backup es un contrato externo separado del formato persistido interno.
 - Restaurar un backup reemplaza la colección completa; no hay merge.
+- El service worker no es fuente de verdad de la colección.
 
 ## Trade-offs
 
@@ -287,8 +302,8 @@ como formato transportable. El costo es mantener validación y documentación pa
 ambos contratos.
 
 Errores explícitos frente a recuperación silenciosa:
-protege datos corruptos de ser descartados sin aviso. El costo es que la UI
-futura deberá mostrar errores y caminos de recuperación.
+protege datos corruptos de ser descartados sin aviso. El costo es que la UI debe
+mostrar errores y caminos de recuperación.
 
 Repositorio pequeño frente a API extensa:
 reduce superficie prematura. El costo es que flujos futuros pueden necesitar
@@ -296,20 +311,16 @@ nuevas operaciones si aparece una necesidad real.
 
 ## Fuera de alcance
 
-Todavía no existen:
+La persistencia local no implementa:
 
-- backup manual;
-- restauración;
 - migraciones entre versiones;
 - múltiples usuarios;
 - sincronización;
-- UI;
-- estado React;
 - historial de cambios.
 
-## Relación con próximos incrementos
+## Relación con otras capas
 
-La UI futura deberá:
+La UI debe:
 
 - cargar la colección mediante `CollectionRepository.load`;
 - aplicar cambios con funciones del dominio como `addCopy`, `removeCopy` o
@@ -318,9 +329,8 @@ La UI futura deberá:
 - manejar estados de carga y error;
 - evitar duplicar reglas de copias, progreso, faltantes y repetidas.
 
-El futuro backup puede compartir ideas con el formato persistido local, pero no
-debe acoplarse automáticamente a él. El backup tendrá que definir su propio
-contrato público, validación e historia de compatibilidad.
+El backup comparte ideas con el formato persistido local, pero no se acopla
+directamente a IndexedDB. Tiene su propio contrato público y validación.
 
 ## Relación con otros documentos
 
@@ -328,5 +338,6 @@ contrato público, validación e historia de compatibilidad.
 - [Roadmap de implementación](../planning/implementation-roadmap.md)
 - [Decisión 002: identidad mínima de posiciones](../decisions/002-identidad-minima-de-posiciones.md)
 - [Decisión 003: formato persistido de colección local](../decisions/003-formato-persistido-coleccion-local.md)
+- [PWA y funcionamiento offline](pwa-and-offline.md)
 - [Definición del producto](../product/product-definition.md)
 - [Alcance del MVP](../product/mvp-scope.md)

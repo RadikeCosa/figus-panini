@@ -2,9 +2,9 @@
 
 ## 1. Propósito
 
-Este documento describe el dominio ya implementado para los Incrementos 1, 2 y
-4B del MVP: la definición canónica del álbum, las reglas puras de colección y
-la consulta rápida de posiciones.
+Este documento describe el dominio ya implementado para el MVP: la definición
+canónica del álbum, las reglas puras de colección, las vistas derivadas y la
+consulta rápida de posiciones.
 
 El dominio resuelve tres problemas centrales:
 
@@ -327,34 +327,31 @@ sin producir cambios parciales silenciosos. El costo es mantener dos modos de
 tratamiento: error para llamadas internas inválidas y reporte para entrada
 externa.
 
-## 12. Fuera De Alcance
+## 12. Fuera De Alcance Del Dominio
 
-Todavía no existen:
+El dominio no implementa:
 
-- IndexedDB;
-- repositorio de persistencia;
-- backup;
-- UI;
-- estado React;
-- múltiples usuarios;
+- acceso directo a IndexedDB;
+- detalles visuales de UI;
+- service worker o Cache Storage;
 - sincronización;
-- historial.
+- historial completo de cambios;
+- múltiples usuarios.
 
-El dominio actual tampoco implementa formatos de copia para listas de faltantes
-o repetidas, restauración atómica, PWA ni comportamiento offline.
+La persistencia, el backup, la UI y la PWA consumen las reglas del dominio, pero
+mantienen sus responsabilidades en capas separadas.
 
-## 13. Relación Con Próximos Incrementos
+## 13. Relación Con Otras Capas
 
-La persistencia deberá guardar y recuperar la colección sin duplicar reglas de
-validez. Antes de persistir, deberá usar las funciones de dominio para validar
-posiciones, cantidades y normalizar datos externos cuando corresponda.
+La persistencia guarda y recupera la colección sin duplicar reglas de validez.
+Antes de devolver datos externos usa las funciones de dominio para validar
+posiciones, cantidades y normalizar datos.
 
-La UI deberá leer estados derivados desde el dominio: progreso, faltantes,
-repetidas, total físico, total único y copias repetidas. No debería persistir
-flags como `owned`, `missing` o `hasDuplicates`, porque ya se calculan desde
-`copies`.
+La UI lee estados derivados desde el dominio: progreso, faltantes, repetidas,
+total físico, total único y copias repetidas. No persiste flags como `owned`,
+`missing` o `hasDuplicates`, porque ya se calculan desde `copies`.
 
-Los próximos incrementos deberán mantener esta dirección:
+La dirección arquitectónica vigente es:
 
 ```text
 Datos guardados -> dominio puro -> estados derivados -> UI

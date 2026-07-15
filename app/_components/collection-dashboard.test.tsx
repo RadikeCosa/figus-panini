@@ -11,7 +11,6 @@ import {
 import type { CollectionRepository } from "../../infrastructure/persistence/collection-repository";
 import { CollectionDashboard } from "./collection-dashboard";
 import { MainNavigation } from "./main-navigation";
-import { PlaceholderPage } from "./placeholder-page";
 
 const mexico1 = { section: "México", position: "1" };
 const mexico2 = { section: "México", position: "2" };
@@ -343,7 +342,7 @@ describe("CollectionDashboard", () => {
   });
 });
 
-describe("initial navigation and placeholders", () => {
+describe("initial navigation", () => {
   it("shows the main access points", () => {
     render(<MainNavigation />);
 
@@ -361,15 +360,6 @@ describe("initial navigation and placeholders", () => {
     ).toBe("/duplicates");
   });
 
-  it("renders honest placeholders for future routes", () => {
-    render(<PlaceholderPage title="Álbum" />);
-
-    expect(screen.getByRole("heading", { level: 1, name: "Álbum" })).toBeTruthy();
-    expect(
-      screen.getByText("Esta funcionalidad todavía no está implementada."),
-    ).toBeTruthy();
-    expect(screen.getByRole("link", { name: "Volver al inicio" })).toBeTruthy();
-  });
 });
 
 function fakeRepository(collection: CollectionState): CollectionRepository {

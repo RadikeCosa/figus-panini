@@ -68,8 +68,6 @@ físico sin tocar otra zona de la pantalla.
 
 Este flujo no implementa:
 
-- backup o restauración;
-- PWA;
 - historial completo de ingresos;
 - edición arbitraria de cantidades;
 - captura por cámara u OCR;

@@ -89,8 +89,8 @@ Este documento guía la secuencia de trabajo. No registra trabajo ya realizado n
 
 - Estado: completado.
 - Alcance: ruta principal mobile-first, carga inicial desde `CollectionRepository`,
-  estados loading/ready/error, resumen derivado del dominio y rutas placeholder
-  para próximas superficies.
+  estados loading/ready/error, resumen derivado del dominio y accesos a las
+  superficies principales.
 - Resultado verificable: `/` carga la colección local, muestra métricas reales y
   ofrece accesos a Álbum, Carga rápida, Faltantes y Repetidas.
 - Validaciones esperadas: tests de UI con repositorio inyectado, lint y build.
@@ -187,13 +187,18 @@ Este documento guía la secuencia de trabajo. No registra trabajo ya realizado n
 
 ### 8. Respaldo, restauración y PWA
 
-- Estado: en curso.
+- Estado: completado.
 - Objetivo: cubrir exportación/importación confiable y la base progresiva de uso offline.
-- Alcance: respaldo técnico validado, restauración atómica y preparativos de experiencia offline.
+- Alcance: respaldo técnico validado, restauración atómica, PWA instalable,
+  service worker y funcionamiento offline de las superficies principales.
 - Dependencias: persistencia estable y flujo principal funcional.
 - Resultado verificable: se puede exportar, importar y seguir usando la app localmente.
-- Criterios de aceptación: el respaldo valida estructura, evita merges silenciosos y no presenta éxito falso.
-- Validaciones esperadas: tests de importación/exportación y verificación manual de offline.
+- Criterios de aceptación: el respaldo valida estructura, evita merges
+  silenciosos y no presenta éxito falso; la PWA tiene manifest, iconos,
+  service worker versionado, caché acotada, actualización documentada y no
+  cachea datos de usuario.
+- Validaciones esperadas: tests de importación/exportación, tests PWA, lint,
+  build y verificación en navegador de producción.
 - Documentación que debería actualizarse: `docs/product/mvp-scope.md` y, si aparecen decisiones técnicas, `docs/decisions/`.
 
 #### 8A. Respaldo y restauración
@@ -209,22 +214,24 @@ Este documento guía la secuencia de trabajo. No registra trabajo ya realizado n
 
 #### 8B. PWA y offline
 
-- Estado: pendiente.
+- Estado: completado.
 - Alcance: manifest, iconos, service worker, caché mínima y validación offline.
 - Resultado verificable: la app puede instalarse y abrir superficies principales
   sin conexión después de una primera carga.
-- Validaciones esperadas: revisión en navegador de instalación, actualización y
-  comportamiento offline.
+- Validaciones esperadas: tests de manifest, registro, indicador offline y
+  configuración de caché; lint; build; revisión en navegador de producción de
+  instalación, actualización y comportamiento offline.
 
 ### 9. Estabilización final
 
-- Estado: pendiente.
+- Estado: completado.
 - Objetivo: cerrar inconsistencias, validar supuestos y preparar el MVP para uso real.
 - Alcance: correcciones finales, pulido de errores y documentación de decisiones relevantes.
 - Dependencias: incrementos anteriores.
 - Resultado verificable: el MVP queda coherente, estable y documentado.
 - Criterios de aceptación: no quedan contradicciones entre documentos, código y estado real.
-- Validaciones esperadas: lint, tests, typecheck y revisión funcional de las superficies críticas.
+- Validaciones esperadas: tests, lint, build, validación de producción con
+  Chromium y revisión funcional de las superficies críticas.
 - Documentación que debería actualizarse: los documentos afectados por los cambios concretos y, si corresponde, `docs/decisions/`.
 
 ## Relación con otros documentos

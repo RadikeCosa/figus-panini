@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="Figuritas">
+  <rect width="512" height="512" rx="96" fill="#064e3b"/>
+  <rect x="132" y="72" width="248" height="368" rx="34" fill="#f8fafc"/>
+  <rect x="156" y="104" width="200" height="236" rx="22" fill="#10b981"/>
+  <circle cx="256" cy="222" r="70" fill="#ecfdf5"/>
+  <path d="M256 145 273 197 328 197 284 229 301 282 256 249 211 282 228 229 184 197 239 197Z" fill="#064e3b"/>
+  <rect x="168" y="368" width="176" height="18" rx="9" fill="#064e3b"/>
+  <rect x="194" y="398" width="124" height="18" rx="9" fill="#064e3b"/>
+</svg>

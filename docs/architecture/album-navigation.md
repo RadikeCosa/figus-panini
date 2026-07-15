@@ -149,4 +149,4 @@ Todavía no existe en `/album`:
 
 - nombres de jugadores;
 - imágenes, escudos o metadatos editoriales;
-- backup, restauración o PWA.
+- enlace directo a una posición individual dentro de la grilla.

@@ -9,7 +9,9 @@ y repetidas, respaldo y restauración.
 La implementación actual permite abrir la ruta principal, cargar la colección
 local mediante el repositorio, distinguir carga, éxito y error, y mostrar un
 resumen real derivado del dominio. También permite consultar una posición por
-sección y número para saber si falta, está pegada o está repetida.
+sección y número para saber si falta, está pegada o está repetida. La identidad
+PWA, el estado offline y el aviso de actualización viven en un runtime cliente
+separado para no convertir toda la aplicación en Client Component.
 
 La ruta `/album` permite recorrer el álbum canónico por sección, ver métricas de
 la sección seleccionada, leer el estado de cada posición y corregir cantidades
@@ -57,7 +59,11 @@ derivadas.
 carga IndexedDB, descarga archivos, lee archivos seleccionados y guarda la
 colección restaurada mediante el repositorio.
 
-No se agregan placeholders nuevos en este incremento.
+`app/_components/pwa-runtime.tsx` es Client Component porque registra el service
+worker, escucha eventos `online`/`offline` y muestra un aviso discreto de nueva
+versión. No accede a la colección, no abre IndexedDB y no modifica rutas.
+
+Las superficies principales actuales son rutas funcionales, no placeholders.
 
 ## Composición del repositorio
 
@@ -414,9 +420,9 @@ Inyección de repositorio frente a acceso directo:
 inyectar `createRepository` hace testeable el componente y mantiene IndexedDB
 fuera de la presentación. El costo es una prop extra en el componente cliente.
 
-Shell funcional frente a implementar todas las pantallas:
-el shell permite validar composición, carga y navegación sin adelantar flujos
-que todavía no existen.
+Shell funcional frente a estado global:
+la ruta principal compone resumen, consulta y accesos a superficies reales sin
+introducir un estado global de aplicación.
 
 Carga explícita frente a asumir colección vacía:
 mostrar loading evita datos falsos mientras IndexedDB abre. El costo es un
@@ -445,7 +451,6 @@ beneficio es evitar reemplazos accidentales.
 
 Todavía no existe:
 
-- PWA;
 - arquitectura global de estado.
 
 ## Relación con otros documentos
@@ -455,6 +460,7 @@ Todavía no existe:
 - [Entrada rápida](quick-entry.md)
 - [Vistas de colección](collection-views.md)
 - [Backup y restauración](backup-and-restore.md)
+- [PWA y funcionamiento offline](pwa-and-offline.md)
 - [Persistencia local](persistence.md)
 - [Roadmap de implementación](../planning/implementation-roadmap.md)
 - [Definición del producto](../product/product-definition.md)

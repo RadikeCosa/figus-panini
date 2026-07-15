@@ -3,7 +3,7 @@
 ## Funcionalidades incluidas
 
 - Revisar progreso general de la colección.
-- Recorrer el álbum por figurita o por grupo lógico cuando exista la definición canónica.
+- Recorrer el álbum por sección y grupo canónico.
 - Registrar una figurita con su cantidad.
 - Corregir la cantidad de una figurita.
 - Consultar faltantes.
@@ -80,7 +80,7 @@ Pedro importa un respaldo validado y reemplaza la colección actual de forma at�
 
 ## Preguntas abiertas
 
-- Formato exacto del backup técnico: pendiente de definición final si cambia respecto de la base actual.
+No quedan preguntas abiertas bloqueantes para el MVP vigente.
 
 ## Relación con otros documentos
 

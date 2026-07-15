@@ -3,7 +3,8 @@
 ## Propósito
 
 `/backup` permite exportar la colección local a un archivo JSON y restaurar un
-archivo validado. Todo ocurre en el navegador; no se envían datos a servidores.
+archivo validado. Todo ocurre en el navegador; no se envían datos a servidores y
+el flujo no depende de red.
 
 ## Formato interno y backup
 
@@ -98,6 +99,25 @@ es mucho menor; el límite evita leer archivos accidentalmente grandes.
 La exportación, validación y restauración ocurren localmente en el navegador. No
 hay backend, telemetría ni analíticas.
 
+## Funcionamiento offline
+
+La ruta `/backup` forma parte del shell PWA cacheado. Después de una primera
+visita online puede abrirse sin conexión.
+
+Exportar offline:
+
+- carga la colección desde IndexedDB;
+- serializa JSON en memoria;
+- descarga el archivo con APIs nativas del navegador.
+
+Restaurar offline:
+
+- lee el archivo seleccionado por el usuario;
+- valida el contrato de backup en memoria;
+- reemplaza la colección activa mediante `CollectionRepository.save()`.
+
+El service worker no cachea archivos de backup ni datos de usuario.
+
 ## Trade-offs
 
 Reemplazo completo frente a merge:
@@ -127,9 +147,6 @@ dos contratos documentados.
 
 No implementa:
 
-- PWA;
-- service worker;
-- caché offline;
 - sincronización remota;
 - merge entre respaldos;
 - múltiples álbumes;
@@ -138,6 +155,7 @@ No implementa:
 ## Relación con otros documentos
 
 - [Persistencia local](persistence.md)
+- [PWA y funcionamiento offline](pwa-and-offline.md)
 - [UI y flujo de estado](ui-and-state-flow.md)
 - [Roadmap de implementación](../planning/implementation-roadmap.md)
 - [Decisiones](../decisions/README.md)

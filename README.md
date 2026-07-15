@@ -1,36 +1,117 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Álbum de Pedro
 
-## Getting Started
+App local y mobile-first para que Pedro gestione su álbum físico de figuritas
+Panini del Mundial 2026 desde el teléfono.
 
-First, run the development server:
+## Propósito
+
+Ayuda a registrar qué figuritas están pegadas, cuáles faltan y cuáles están
+repetidas, sin cuentas, backend ni sincronización remota.
+
+## Funcionalidades
+
+- Resumen global de progreso sobre 980 posiciones canónicas.
+- Consulta rápida por sección y número.
+- Álbum navegable por secciones y grupos.
+- Edición de cantidades desde el álbum.
+- Entrada rápida para cargar figuritas recién abiertas.
+- Vistas de faltantes y repetidas con filtros.
+- Exportación y restauración de respaldo JSON validado.
+- Persistencia local en IndexedDB.
+- PWA instalable con uso offline después de una primera carga.
+
+## Stack
+
+- Next.js 16 con App Router.
+- React 19.
+- TypeScript.
+- Tailwind CSS 4.
+- Vitest y Testing Library.
+- IndexedDB nativo para persistencia local.
+- Service worker propio para PWA/offline.
+
+## Arquitectura
+
+El dominio vive separado de UI y persistencia:
+
+- `domain/album/`: definición canónica de las 980 posiciones.
+- `domain/collection/`: reglas puras de colección, progreso, faltantes y
+  repetidas.
+- `domain/backup/`: contrato JSON de respaldo y validación.
+- `infrastructure/persistence/`: adaptador IndexedDB.
+- `app/`: rutas y componentes Next.js.
+- `pwa/`: configuración testeable de caché offline.
+
+## Ejecución local
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Abrir `http://localhost:3000`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Tests
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm test
+npm run lint
+```
 
-## Learn More
+## Build de producción
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+npm run build
+npm run start
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+La validación PWA/offline debe hacerse sobre producción, no solo con `next dev`.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## PWA
 
-## Deploy on Vercel
+La app define manifest, iconos, metadata y service worker. Después de una
+primera visita online, quedan disponibles offline:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- `/`;
+- `/album`;
+- `/quick-entry`;
+- `/missing`;
+- `/duplicates`;
+- `/backup`.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+El service worker cachea shell, assets locales y navegación interna de esas
+rutas. No cachea datos de usuario.
+
+## Persistencia
+
+La colección se guarda en IndexedDB del navegador como mapa disperso de
+cantidades por posición. Las entradas con cantidad `0` no se persisten. La UI
+accede a IndexedDB únicamente a través de `CollectionRepository`.
+
+## Backup
+
+El respaldo es un JSON versionado con `type: "figus-pani-backup"`,
+`formatVersion: 1`, `exportedAt` y `copiesByPosition`. Importar un respaldo
+reemplaza la colección completa solo después de validar estructura, versión,
+fecha, posiciones y cantidades.
+
+## Documentación
+
+- Producto: `docs/product/`.
+- Roadmap: `docs/planning/implementation-roadmap.md`.
+- Arquitectura: `docs/architecture/`.
+- Decisiones: `docs/decisions/`.
+- Guía operativa para agentes: `AGENTS.md`.
+
+## Estado del MVP
+
+MVP funcional y cerrado según el roadmap vigente. El alcance sigue siendo
+local/offline: no hay cuentas, backend, sincronización, analytics, OCR, cámara,
+notificaciones push ni múltiples álbumes.
+
+## Límites conocidos
+
+- No incluye figuritas promocionales.
+- No incluye nombres de jugadores, imágenes, escudos ni rareza.
+- `/album` puede abrir una sección desde query string, pero no tiene deep link a
+  una posición individual dentro de la grilla.

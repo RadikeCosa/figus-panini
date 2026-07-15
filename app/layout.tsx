@@ -1,5 +1,6 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { PwaRuntime } from "./_components/pwa-runtime";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -13,8 +14,19 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  applicationName: "Álbum de Pedro",
   title: "Álbum de Pedro",
   description: "Gestión local de figuritas del Mundial 2026",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    title: "Álbum de Pedro",
+    statusBarStyle: "default",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#064e3b",
 };
 
 export default function RootLayout({
@@ -27,7 +39,10 @@ export default function RootLayout({
       lang="es"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        {children}
+        <PwaRuntime />
+      </body>
     </html>
   );
 }
