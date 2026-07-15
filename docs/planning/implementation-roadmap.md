@@ -71,7 +71,7 @@ Este documento guía la secuencia de trabajo. No registra trabajo ya realizado n
 
 ### 4. Shell y navegación mobile-first
 
-- Estado: pendiente.
+- Estado: en curso.
 - Objetivo: crear la estructura visible mínima para navegar el MVP desde celular.
 - Alcance: navegación principal, layout responsive y acceso simple a las superficies del producto.
 - Dependencias: dominio y persistencia base.
@@ -79,6 +79,22 @@ Este documento guía la secuencia de trabajo. No registra trabajo ya realizado n
 - Criterios de aceptación: navegación simple, foco visible y sin dependencia de datos inventados.
 - Validaciones esperadas: revisión visual y pruebas básicas de interacción.
 - Documentación que debería actualizarse: `docs/product/mvp-scope.md`.
+
+#### 4A. Shell y carga inicial
+
+- Estado: completado.
+- Alcance: ruta principal mobile-first, carga inicial desde `CollectionRepository`,
+  estados loading/ready/error, resumen derivado del dominio y rutas placeholder
+  para próximas superficies.
+- Resultado verificable: `/` carga la colección local, muestra métricas reales y
+  ofrece accesos a Álbum, Carga rápida, Faltantes y Repetidas.
+- Validaciones esperadas: tests de UI con repositorio inyectado, lint y build.
+
+#### 4B. Resumen y navegación funcional
+
+- Estado: pendiente.
+- Alcance: completar navegación funcional y conectar superficies reales cuando
+  existan los flujos de álbum, carga rápida, faltantes y repetidas.
 
 ### 5. Flujo principal del álbum
 
