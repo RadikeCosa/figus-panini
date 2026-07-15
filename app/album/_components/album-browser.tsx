@@ -441,9 +441,9 @@ function PositionGrid({
       <h3 id="album-grid-title" className="text-base font-semibold text-zinc-950">
         Posiciones
       </h3>
-      <ol className="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-5 md:grid-cols-8">
+      <ol className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-8">
         {positions.map((position) => (
-          <li key={`${position.section}-${position.position}`}>
+          <li className="min-w-0" key={`${position.section}-${position.position}`}>
             <PositionCard
               collection={collection}
               isSaving={isSaving}
@@ -475,12 +475,13 @@ function PositionCard({
   const duplicateCopies = getDuplicateCopies(collection, position);
   const state =
     copies === 0 ? "missing" : duplicateCopies > 0 ? "duplicate" : "owned";
-  const label =
+  const stateLabel =
     state === "missing"
       ? "Faltante"
       : state === "duplicate"
-        ? `${copies} copias`
+        ? `${duplicateCopies} repetida${duplicateCopies === 1 ? "" : "s"}`
         : "Pegada";
+  const quantityLabel = `${copies} copia${copies === 1 ? "" : "s"}`;
   const stateStyles =
     state === "missing"
       ? "border-zinc-200 bg-zinc-50 text-zinc-700"
@@ -490,30 +491,37 @@ function PositionCard({
 
   return (
     <article
-      aria-label={`${position.section} ${position.position}: ${label}`}
-      className={`flex min-h-36 flex-col justify-between rounded-md border p-3 ${stateStyles}`}
+      aria-label={`${position.section} ${position.position}: ${stateLabel}, ${quantityLabel}`}
+      className={`flex min-h-32 min-w-0 flex-col justify-between rounded-md border p-3 ${stateStyles}`}
     >
-      <p className="text-xl font-bold leading-none">{position.position}</p>
-      <p className="mt-3 text-xs font-semibold uppercase tracking-wide">{label}</p>
-      {duplicateCopies > 0 ? (
-        <p className="mt-1 text-xs font-medium">{duplicateCopies} repetidas</p>
-      ) : null}
-      <div className="mt-3 grid grid-cols-[2.75rem_1fr_2.75rem] items-center gap-2">
+      <div className="min-w-0">
+        <p className="text-3xl font-bold leading-none text-zinc-950">
+          {position.position}
+        </p>
+        <p className="mt-2 min-h-5 text-sm font-semibold text-zinc-700">
+          {stateLabel}
+        </p>
+      </div>
+      <div className="mt-3 grid grid-cols-[2.5rem_minmax(0,1fr)_2.5rem] items-center gap-2">
         <button
           aria-label={`Quitar copia de ${position.section} ${position.position}`}
-          className="min-h-11 rounded-md border border-zinc-300 bg-white text-lg font-bold text-zinc-950 outline-offset-2 transition hover:border-red-500 hover:text-red-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-red-700 disabled:cursor-not-allowed disabled:border-zinc-200 disabled:bg-zinc-100 disabled:text-zinc-400"
+          className="min-h-10 min-w-0 rounded-md border border-zinc-300 bg-white text-lg font-bold text-zinc-950 outline-offset-2 transition hover:border-red-500 hover:text-red-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-red-700 disabled:cursor-not-allowed disabled:border-zinc-200 disabled:bg-zinc-100 disabled:text-zinc-400"
           disabled={copies === 0 || isSaving}
           type="button"
           onClick={() => onRemoveCopy(position)}
         >
           −
         </button>
-        <p className="text-center text-xs font-semibold text-zinc-800" aria-live="polite">
-          {copies === 0 ? "Faltante" : copies === 1 ? "1 copia" : `${copies} copias`}
+        <p
+          className="min-w-0 text-center text-lg font-bold leading-none text-zinc-950"
+          aria-label={`${quantityLabel} registrada${copies === 1 ? "" : "s"}`}
+          aria-live="polite"
+        >
+          {copies}
         </p>
         <button
           aria-label={`Agregar copia de ${position.section} ${position.position}`}
-          className="min-h-11 rounded-md border border-zinc-300 bg-white text-lg font-bold text-zinc-950 outline-offset-2 transition hover:border-emerald-600 hover:text-emerald-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:border-zinc-200 disabled:bg-zinc-100 disabled:text-zinc-400"
+          className="min-h-10 min-w-0 rounded-md border border-zinc-300 bg-white text-lg font-bold text-zinc-950 outline-offset-2 transition hover:border-emerald-600 hover:text-emerald-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:border-zinc-200 disabled:bg-zinc-100 disabled:text-zinc-400"
           disabled={isSaving}
           type="button"
           onClick={() => onAddCopy(position)}

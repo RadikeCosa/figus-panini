@@ -79,7 +79,7 @@ describe("AlbumBrowser", () => {
     expect((screen.getByLabelText("Sección del álbum") as HTMLSelectElement).value).toBe(
       "PANINI",
     );
-    expect(screen.getByLabelText("PANINI 00: Faltante")).toBeTruthy();
+    expect(screen.getByLabelText("PANINI 00: Faltante, 0 copias")).toBeTruthy();
   });
 
   it("shows PANINI as owned and repeated when the collection has copies", async () => {
@@ -89,7 +89,7 @@ describe("AlbumBrowser", () => {
 
     expect(await screen.findByRole("heading", { level: 2, name: "PANINI" })).toBeTruthy();
     expect(screen.getByText("1 de 1 pegadas · 0 faltantes · 2 repetidas")).toBeTruthy();
-    expect(screen.getByLabelText("PANINI 00: 3 copias")).toBeTruthy();
+    expect(screen.getByLabelText("PANINI 00: 2 repetidas, 3 copias")).toBeTruthy();
     expect(screen.getByText("2 repetidas")).toBeTruthy();
   });
 
@@ -103,8 +103,8 @@ describe("AlbumBrowser", () => {
 
     expect(screen.getByRole("heading", { level: 2, name: "FWC" })).toBeTruthy();
     expect(screen.getByText("1 de 19 pegadas · 18 faltantes · 0 repetidas")).toBeTruthy();
-    expect(screen.getByLabelText("FWC 4: Pegada")).toBeTruthy();
-    expect(screen.getByLabelText("FWC 19: Faltante")).toBeTruthy();
+    expect(screen.getByLabelText("FWC 4: Pegada, 1 copia")).toBeTruthy();
+    expect(screen.getByLabelText("FWC 19: Faltante, 0 copias")).toBeTruthy();
     expect(positionCards()).toHaveLength(19);
   });
 
@@ -215,8 +215,8 @@ describe("AlbumBrowser", () => {
     expect(screen.getByRole("heading", { level: 2, name: "México" })).toBeTruthy();
     expect(screen.getByText("Grupo A")).toBeTruthy();
     expect(screen.getByText("1 de 20 pegadas · 19 faltantes · 0 repetidas")).toBeTruthy();
-    expect(screen.getByLabelText("México 12: Pegada")).toBeTruthy();
-    expect(screen.getByLabelText("México 1: Faltante")).toBeTruthy();
+    expect(screen.getByLabelText("México 12: Pegada, 1 copia")).toBeTruthy();
+    expect(screen.getByLabelText("México 1: Faltante, 0 copias")).toBeTruthy();
     expect(positionCards()).toHaveLength(20);
   });
 
@@ -245,10 +245,69 @@ describe("AlbumBrowser", () => {
     selectSection("Argentina");
 
     expect(screen.getByText("2 de 20 pegadas · 18 faltantes · 2 repetidas")).toBeTruthy();
-    expect(screen.getByLabelText("Argentina 1: Faltante")).toBeTruthy();
-    expect(screen.getByLabelText("Argentina 7: Pegada")).toBeTruthy();
-    expect(screen.getByLabelText("Argentina 18: 3 copias")).toBeTruthy();
-    expect(screen.getAllByText("3 copias")).toHaveLength(2);
+    expect(screen.getByLabelText("Argentina 1: Faltante, 0 copias")).toBeTruthy();
+    expect(screen.getByLabelText("Argentina 7: Pegada, 1 copia")).toBeTruthy();
+    expect(screen.getByLabelText("Argentina 18: 2 repetidas, 3 copias")).toBeTruthy();
+    expect(screen.getByText("2 repetidas")).toBeTruthy();
+  });
+
+  it("keeps each editable position as a self-contained card", async () => {
+    const collection = setCopies(
+      setCopies(createEmptyCollection(), mexico1, 1),
+      mexico12,
+      3,
+    );
+
+    render(<AlbumBrowser createRepository={() => fakeRepository(collection)} />);
+
+    await screen.findByRole("heading", { level: 2, name: "PANINI" });
+    selectSection("México");
+
+    const missingCard = screen.getByRole("article", {
+      name: "México 2: Faltante, 0 copias",
+    });
+    const ownedCard = screen.getByRole("article", {
+      name: "México 1: Pegada, 1 copia",
+    });
+    const duplicateCard = screen.getByRole("article", {
+      name: "México 12: 2 repetidas, 3 copias",
+    });
+
+    expect(within(missingCard).getByText("Faltante")).toBeTruthy();
+    expect(within(missingCard).getAllByText("Faltante")).toHaveLength(1);
+    expect(within(missingCard).getByLabelText("0 copias registradas")).toBeTruthy();
+    expect(
+      (
+        within(missingCard).getByRole("button", {
+          name: "Quitar copia de México 2",
+        }) as HTMLButtonElement
+      ).disabled,
+    ).toBe(true);
+    expect(
+      within(missingCard).getByRole("button", { name: "Agregar copia de México 2" }),
+    ).toBeTruthy();
+
+    expect(within(ownedCard).getByText("Pegada")).toBeTruthy();
+    expect(within(ownedCard).getByLabelText("1 copia registrada")).toBeTruthy();
+    expect(
+      within(ownedCard).getByRole("button", { name: "Quitar copia de México 1" }),
+    ).toBeTruthy();
+    expect(
+      within(ownedCard).getByRole("button", { name: "Agregar copia de México 1" }),
+    ).toBeTruthy();
+
+    expect(within(duplicateCard).getByText("2 repetidas")).toBeTruthy();
+    expect(within(duplicateCard).getByLabelText("3 copias registradas")).toBeTruthy();
+    expect(
+      within(duplicateCard).getByRole("button", {
+        name: "Quitar copia de México 12",
+      }),
+    ).toBeTruthy();
+    expect(
+      within(duplicateCard).getByRole("button", {
+        name: "Agregar copia de México 12",
+      }),
+    ).toBeTruthy();
   });
 
   it("keeps the loaded collection without additional reads while navigating", async () => {
@@ -282,7 +341,7 @@ describe("AlbumBrowser", () => {
     fireEvent.click(screen.getByRole("button", { name: "Agregar copia de PANINI 00" }));
 
     expect(await screen.findByText("Cambios guardados.")).toBeTruthy();
-    expect(screen.getByLabelText("PANINI 00: Pegada")).toBeTruthy();
+    expect(screen.getByLabelText("PANINI 00: Pegada, 1 copia")).toBeTruthy();
     expect(screen.getByText("1 de 1 pegadas · 0 faltantes · 0 repetidas")).toBeTruthy();
     expect(save).toHaveBeenCalledTimes(1);
     expect(getCopies(save.mock.calls[0][0], panini)).toBe(1);
@@ -299,7 +358,7 @@ describe("AlbumBrowser", () => {
     await addPaniniCopy();
     await addPaniniCopy();
 
-    expect(screen.getByLabelText("PANINI 00: 3 copias")).toBeTruthy();
+    expect(screen.getByLabelText("PANINI 00: 2 repetidas, 3 copias")).toBeTruthy();
     expect(screen.getByText("1 de 1 pegadas · 0 faltantes · 2 repetidas")).toBeTruthy();
     expect(save).toHaveBeenCalledTimes(3);
     expect(getCopies(save.mock.calls[2][0], panini)).toBe(3);
@@ -315,7 +374,7 @@ describe("AlbumBrowser", () => {
     fireEvent.click(screen.getByRole("button", { name: "Quitar copia de PANINI 00" }));
 
     expect(await screen.findByText("Cambios guardados.")).toBeTruthy();
-    expect(screen.getByLabelText("PANINI 00: Pegada")).toBeTruthy();
+    expect(screen.getByLabelText("PANINI 00: Pegada, 1 copia")).toBeTruthy();
     expect(getCopies(save.mock.calls[0][0], panini)).toBe(1);
   });
 
@@ -329,7 +388,7 @@ describe("AlbumBrowser", () => {
     fireEvent.click(screen.getByRole("button", { name: "Quitar copia de PANINI 00" }));
 
     expect(await screen.findByText("Cambios guardados.")).toBeTruthy();
-    expect(screen.getByLabelText("PANINI 00: Faltante")).toBeTruthy();
+    expect(screen.getByLabelText("PANINI 00: Faltante, 0 copias")).toBeTruthy();
     expect(screen.getByText("0 de 1 pegadas · 1 faltantes · 0 repetidas")).toBeTruthy();
     expect(getCopies(save.mock.calls[0][0], panini)).toBe(0);
   });
@@ -367,7 +426,7 @@ describe("AlbumBrowser", () => {
     );
 
     expect(await screen.findByText("2 de 20 pegadas · 18 faltantes · 1 repetidas")).toBeTruthy();
-    expect(screen.getByLabelText("Argentina 18: 2 copias")).toBeTruthy();
+    expect(screen.getByLabelText("Argentina 18: 1 repetida, 2 copias")).toBeTruthy();
   });
 
   it("does not lose consecutive changes made after each save completes", async () => {
@@ -380,7 +439,7 @@ describe("AlbumBrowser", () => {
     await addPaniniCopy();
     await addPaniniCopy();
 
-    expect(screen.getByLabelText("PANINI 00: 2 copias")).toBeTruthy();
+    expect(screen.getByLabelText("PANINI 00: 1 repetida, 2 copias")).toBeTruthy();
     expect(save).toHaveBeenCalledTimes(2);
     expect(getCopies(save.mock.calls[1][0], panini)).toBe(2);
   });
@@ -426,7 +485,7 @@ describe("AlbumBrowser", () => {
     expect(
       screen.getByText("No fue posible guardar. Se restauró el estado anterior."),
     ).toBeTruthy();
-    expect(screen.getByLabelText("PANINI 00: Faltante")).toBeTruthy();
+    expect(screen.getByLabelText("PANINI 00: Faltante, 0 copias")).toBeTruthy();
     expect(screen.getByText("0 de 1 pegadas · 1 faltantes · 0 repetidas")).toBeTruthy();
   });
 
@@ -447,7 +506,7 @@ describe("AlbumBrowser", () => {
     fireEvent.click(screen.getByRole("button", { name: "Agregar copia de PANINI 00" }));
 
     expect(await screen.findByText("Cambios guardados.")).toBeTruthy();
-    expect(screen.getByLabelText("PANINI 00: Pegada")).toBeTruthy();
+    expect(screen.getByLabelText("PANINI 00: Pegada, 1 copia")).toBeTruthy();
     expect(save).toHaveBeenCalledTimes(2);
   });
 
@@ -465,7 +524,7 @@ describe("AlbumBrowser", () => {
 
     expect(await screen.findByText("Cambios guardados.")).toBeTruthy();
     expect(screen.getByRole("heading", { level: 2, name: "Argentina" })).toBeTruthy();
-    expect(screen.getByLabelText("Argentina 7: Pegada")).toBeTruthy();
+    expect(screen.getByLabelText("Argentina 7: Pegada, 1 copia")).toBeTruthy();
   });
 
   it("does not load again when editing quantities", async () => {

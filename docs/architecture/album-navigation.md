@@ -69,12 +69,22 @@ La sección seleccionada muestra:
 - copias repetidas;
 - porcentaje simple.
 
-La grilla muestra una tarjeta por posición de la sección con número visible y
-estado textual:
+La grilla muestra una tarjeta autocontenida por posición de la sección con
+número visible, estado textual breve, cantidad actual y controles de edición.
+
+La composición de cada tarjeta es:
+
+```text
+posición
+estado breve
+[−] cantidad [+]
+```
+
+Estados visibles:
 
 - `Faltante`;
 - `Pegada`;
-- `N copias` cuando tiene repetidas.
+- `1 repetida`, `2 repetidas`, etc. cuando tiene más de una copia.
 
 Las métricas usan funciones del dominio de colección como `getSectionProgress`,
 `getCopies` y `getDuplicateCopies`.
@@ -109,9 +119,10 @@ recientes con guardados anteriores.
 
 La navegación usa un `select` nativo con `optgroup`.
 
-En mobile mantiene una sola sección visible y una grilla compacta sin overflow.
-En pantallas más anchas aumenta la cantidad de columnas, pero no introduce una
-experiencia distinta.
+En mobile mantiene una sola sección visible y una grilla de dos columnas para
+que cada tarjeta conserve ancho suficiente para `−`, cantidad y `+` sin
+overflow. En pantallas más anchas aumenta progresivamente a tres, cinco y ocho
+columnas, pero no introduce una experiencia distinta.
 
 ## Trade-offs
 
