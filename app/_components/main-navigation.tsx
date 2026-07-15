@@ -5,6 +5,7 @@ const navigationItems = [
   { href: "/quick-entry", label: "Carga rápida" },
   { href: "/missing", label: "Faltantes" },
   { href: "/duplicates", label: "Repetidas" },
+  { href: "/backup", label: "Respaldo" },
 ];
 
 export function MainNavigation() {

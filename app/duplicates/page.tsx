@@ -1,5 +1,5 @@
-import { PlaceholderPage } from "../_components/placeholder-page";
+import { CollectionViews } from "../_components/collection-views";
 
 export default function DuplicatesPage() {
-  return <PlaceholderPage title="Repetidas" />;
+  return <CollectionViews mode="duplicates" />;
 }

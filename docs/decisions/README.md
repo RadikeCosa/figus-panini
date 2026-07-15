@@ -50,6 +50,7 @@ Usar nombres ordenados y estables, por ejemplo:
 - [001. Excluir figuritas promocionales](001-excluir-figuritas-promocionales.md)
 - [002. Identidad mínima de posiciones](002-identidad-minima-de-posiciones.md)
 - [003. Formato persistido de colección local](003-formato-persistido-coleccion-local.md)
+- [004. Formato de backup separado](004-formato-backup-separado.md)
 
 ## Relación con otros documentos
 

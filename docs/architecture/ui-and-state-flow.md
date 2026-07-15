@@ -3,7 +3,8 @@
 ## Propósito
 
 Este documento describe las primeras superficies navegables implementadas:
-inicio con resumen y consulta rápida, álbum editable y entrada rápida.
+inicio con resumen y consulta rápida, álbum editable, entrada rápida, faltantes
+y repetidas, respaldo y restauración.
 
 La implementación actual permite abrir la ruta principal, cargar la colección
 local mediante el repositorio, distinguir carga, éxito y error, y mostrar un
@@ -16,6 +17,12 @@ con persistencia local.
 
 La ruta `/quick-entry` permite registrar figuritas de a una con la misma
 resolución canónica de sección y número que usa la consulta rápida.
+
+Las rutas `/missing` y `/duplicates` muestran listas de solo lectura derivadas
+de la colección persistida.
+
+La ruta `/backup` permite exportar y restaurar la colección con un contrato JSON
+versionado y validado antes de reemplazar datos.
 
 ## Frontera Server y Client Components
 
@@ -40,7 +47,17 @@ localmente y guardar cambios de cantidad.
 porque necesita cargar IndexedDB, manejar el campo de entrada, sugerencias,
 guardado inmediato, rollback y deshacer de la última carga.
 
-Los placeholders de rutas futuras siguen siendo Server Components simples.
+`app/missing/page.tsx` y `app/duplicates/page.tsx` se mantienen como Server
+Components y componen `app/_components/collection-views.tsx`, que es Client
+Component porque carga IndexedDB, mantiene el filtro local y proyecta listas
+derivadas.
+
+`app/backup/page.tsx` se mantiene como Server Component y compone
+`app/backup/_components/backup-manager.tsx`, que es Client Component porque
+carga IndexedDB, descarga archivos, lee archivos seleccionados y guarda la
+colección restaurada mediante el repositorio.
+
+No se agregan placeholders nuevos en este incremento.
 
 ## Composición del repositorio
 
@@ -240,6 +257,53 @@ No fue posible guardar. Se restauró el estado anterior.
 
 La arquitectura detallada del flujo vive en [Entrada rápida](quick-entry.md).
 
+## Faltantes y repetidas
+
+`/missing` y `/duplicates` cargan la colección una vez con
+`CollectionRepository.load()` y derivan sus listas en memoria. Filtrar por
+sección no vuelve a leer IndexedDB.
+
+Las vistas reutilizan proyecciones puras de dominio:
+
+- `buildMissingCollectionView`;
+- `buildDuplicateCollectionView`;
+- `listCollectionSectionOptions`;
+- `buildAlbumSectionHref`.
+
+`/missing` muestra total faltante, progreso global, secciones con faltantes,
+cantidad faltante por sección, progreso de sección y posiciones faltantes.
+
+`/duplicates` muestra copias repetidas totales, cantidad de posiciones con
+repetidas y, por sección, cada posición con copias totales y copias repetidas.
+
+Ambas vistas usan un `select` nativo con `optgroup` para filtrar por sección y
+enlaces `Ver en álbum` hacia `/album?section=...`.
+
+La arquitectura detallada vive en [Vistas de colección](collection-views.md).
+
+## Respaldo y restauración
+
+`/backup` carga la colección actual una vez mediante `CollectionRepository`.
+
+La exportación:
+
+1. construye un backup desde la colección cargada;
+2. serializa JSON legible;
+3. descarga un archivo `figus-pani-backup-YYYY-MM-DD.json`;
+4. no envía datos a ningún servidor.
+
+La restauración:
+
+1. lee un archivo `.json` seleccionado;
+2. valida tipo, versión, fecha y `copiesByPosition`;
+3. normaliza contra el dominio;
+4. muestra comparación entre colección actual y respaldo;
+5. exige confirmación explícita;
+6. reemplaza la colección completa con `repository.save()`.
+
+Si la validación o el guardado fallan, no se reemplaza la colección actual. La
+arquitectura detallada vive en [Backup y restauración](backup-and-restore.md).
+
 ## Navegación inicial
 
 La ruta `/` está implementada.
@@ -248,14 +312,11 @@ Existen rutas funcionales:
 
 - `/album`: álbum navegable con edición de cantidades.
 - `/quick-entry`: entrada rápida con persistencia y deshacer de la última suma.
+- `/missing`: lista funcional de faltantes con filtro por sección.
+- `/duplicates`: lista funcional de repetidas con filtro por sección.
+- `/backup`: exportación y restauración validada de la colección.
 
-Existen rutas placeholder para:
-
-- `/missing`;
-- `/duplicates`.
-
-Cada placeholder indica que la funcionalidad todavía está pendiente y ofrece
-volver al inicio. No simula comportamiento inexistente.
+No quedan placeholders dentro de las superficies principales actuales.
 
 ## Tests
 
@@ -263,7 +324,9 @@ Los tests de UI viven junto al componente:
 
 ```text
 app/_components/collection-dashboard.test.tsx
+app/_components/collection-views.test.tsx
 app/album/_components/album-browser.test.tsx
+app/backup/_components/backup-manager.test.tsx
 app/quick-entry/_components/quick-entry-flow.test.tsx
 ```
 
@@ -316,9 +379,28 @@ Cubren:
 - rollback ante error al deshacer;
 - persistencia visible tras remount del flujo;
 - soporte de `PANINI`, `FWC` y selecciones;
+- vistas de faltantes loading/ready/error;
+- colección vacía con 980 faltantes;
+- colección completa sin faltantes;
+- agrupación y orden canónico de faltantes;
+- filtros de faltantes sin recargar;
+- vista de repetidas vacía;
+- diferencia entre posiciones repetidas y copias repetidas;
+- agrupación y orden canónico de repetidas;
+- filtros de repetidas sin recargar;
+- enlaces desde faltantes y repetidas hacia `/album?section=...`;
+- apertura de `/album` con sección inicial válida y fallback inválido;
+- respaldo loading/ready/error;
+- exportación de colección vacía y parcial;
+- nombre de archivo de backup;
+- lectura y validación de archivo;
+- vista previa y comparación actual/respaldo;
+- confirmación requerida antes de restaurar;
+- restauración exitosa y error de guardado con reintento;
+- bloqueo de doble confirmación;
+- rechazo de archivos demasiado grandes;
 - acceso para volver al inicio;
 - accesos principales;
-- placeholders honestos.
 
 Los tests de dominio, persistencia y UI permanecen separados.
 
@@ -336,10 +418,6 @@ Shell funcional frente a implementar todas las pantallas:
 el shell permite validar composición, carga y navegación sin adelantar flujos
 que todavía no existen.
 
-Placeholders honestos frente a rutas inexistentes:
-las rutas futuras ya tienen un destino claro y no rompen navegación. El costo es
-mantener pantallas temporales hasta implementar cada flujo real.
-
 Carga explícita frente a asumir colección vacía:
 mostrar loading evita datos falsos mientras IndexedDB abre. El costo es un
 estado visual adicional.
@@ -354,13 +432,19 @@ Esto prioriza consistencia y rollback sencillo sobre velocidad extrema de taps
 consecutivos. IndexedDB local debería responder rápido, y la UI evita mantener
 un estado que no pudo persistirse.
 
+Filtros locales frente a nuevas lecturas:
+faltantes y repetidas cargan una vez y filtran la proyección en memoria. El
+costo es mantener la selección local; el beneficio es lectura rápida y cero
+riesgo de tratar errores de carga como datos vacíos.
+
+Vista previa explícita frente a restauración inmediata:
+backup valida y compara antes de guardar. El costo es un paso extra; el
+beneficio es evitar reemplazos accidentales.
+
 ## Fuera de alcance
 
 Todavía no existe:
 
-- vista real de faltantes;
-- vista real de repetidas;
-- backup o restauración;
 - PWA;
 - arquitectura global de estado.
 
@@ -369,6 +453,8 @@ Todavía no existe:
 - [Modelo de dominio](domain-model.md)
 - [Navegación del álbum](album-navigation.md)
 - [Entrada rápida](quick-entry.md)
+- [Vistas de colección](collection-views.md)
+- [Backup y restauración](backup-and-restore.md)
 - [Persistencia local](persistence.md)
 - [Roadmap de implementación](../planning/implementation-roadmap.md)
 - [Definición del producto](../product/product-definition.md)

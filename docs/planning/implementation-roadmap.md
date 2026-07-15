@@ -171,18 +171,23 @@ Este documento guía la secuencia de trabajo. No registra trabajo ya realizado n
 
 ### 7. Faltantes y repetidas
 
-- Estado: pendiente.
-- Objetivo: facilitar consultas y exportación de listas derivadas.
-- Alcance: filtros, vistas resumidas y formatos de copia o exportación.
+- Estado: completado.
+- Objetivo: facilitar consultas de listas derivadas.
+- Alcance: vistas funcionales de faltantes y repetidas, filtros por sección,
+  agrupación canónica y navegación hacia la sección correspondiente del álbum.
 - Dependencias: dominio puro y datos persistidos.
 - Resultado verificable: Pedro puede revisar faltantes y repetidas sin ambigüedad.
-- Criterios de aceptación: se derivan desde la cantidad real y respetan el orden canónico cuando exista.
-- Validaciones esperadas: tests de listas derivadas y formato.
-- Documentación que debería actualizarse: `docs/product/mvp-scope.md`.
+- Criterios de aceptación: se derivan desde la cantidad real, distinguen
+  posiciones con repetidas de copias repetidas, respetan el orden canónico, no
+  modifican la colección y no recargan IndexedDB al filtrar.
+- Validaciones esperadas: tests de dominio y UI con repositorio inyectado,
+  lint, build y validación en navegador con IndexedDB real.
+- Documentación que debería actualizarse: `docs/product/mvp-scope.md` y
+  `docs/architecture/collection-views.md` si cambian las vistas derivadas.
 
 ### 8. Respaldo, restauración y PWA
 
-- Estado: pendiente.
+- Estado: en curso.
 - Objetivo: cubrir exportación/importación confiable y la base progresiva de uso offline.
 - Alcance: respaldo técnico validado, restauración atómica y preparativos de experiencia offline.
 - Dependencias: persistencia estable y flujo principal funcional.
@@ -190,6 +195,26 @@ Este documento guía la secuencia de trabajo. No registra trabajo ya realizado n
 - Criterios de aceptación: el respaldo valida estructura, evita merges silenciosos y no presenta éxito falso.
 - Validaciones esperadas: tests de importación/exportación y verificación manual de offline.
 - Documentación que debería actualizarse: `docs/product/mvp-scope.md` y, si aparecen decisiones técnicas, `docs/decisions/`.
+
+#### 8A. Respaldo y restauración
+
+- Estado: completado.
+- Alcance: ruta `/backup`, exportación JSON versionada, validación conservadora,
+  vista previa comparativa, confirmación explícita y reemplazo completo mediante
+  `CollectionRepository.save()`.
+- Resultado verificable: Pedro puede exportar un archivo de respaldo, validar un
+  respaldo seleccionado y restaurarlo sin merge ni escritura directa a IndexedDB.
+- Validaciones esperadas: tests de dominio y UI con repositorio inyectado, lint,
+  build y validación en navegador con IndexedDB real.
+
+#### 8B. PWA y offline
+
+- Estado: pendiente.
+- Alcance: manifest, iconos, service worker, caché mínima y validación offline.
+- Resultado verificable: la app puede instalarse y abrir superficies principales
+  sin conexión después de una primera carga.
+- Validaciones esperadas: revisión en navegador de instalación, actualización y
+  comportamiento offline.
 
 ### 9. Estabilización final
 

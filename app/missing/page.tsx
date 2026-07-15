@@ -1,5 +1,5 @@
-import { PlaceholderPage } from "../_components/placeholder-page";
+import { CollectionViews } from "../_components/collection-views";
 
 export default function MissingPage() {
-  return <PlaceholderPage title="Faltantes" />;
+  return <CollectionViews mode="missing" />;
 }

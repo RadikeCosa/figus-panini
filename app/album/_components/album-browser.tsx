@@ -13,6 +13,7 @@ import {
   getDuplicateCopies,
   getSectionProgress,
   removeCopy,
+  resolveCanonicalSection,
   type AlbumPosition,
   type CollectionState,
 } from "../../../domain/collection/collection";
@@ -34,6 +35,7 @@ type SectionOption = {
 
 type AlbumBrowserProps = {
   createRepository?: () => CollectionRepository;
+  initialSection?: string;
 };
 
 const INITIAL_SECTION = "PANINI";
@@ -55,9 +57,12 @@ const SECTION_OPTIONS: SectionOption[] = [
 
 export function AlbumBrowser({
   createRepository = createBrowserCollectionRepository,
+  initialSection,
 }: AlbumBrowserProps) {
   const [loadState, setLoadState] = useState<LoadState>({ status: "loading" });
-  const [selectedSection, setSelectedSection] = useState(INITIAL_SECTION);
+  const [selectedSection, setSelectedSection] = useState(() =>
+    resolveInitialSection(initialSection),
+  );
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [isSaving, setIsSaving] = useState(false);
   const repositoryRef = useRef<CollectionRepository | null>(null);
@@ -189,6 +194,15 @@ export function AlbumBrowser({
       </div>
     </main>
   );
+}
+
+function resolveInitialSection(section: string | undefined): string {
+  if (!section) {
+    return INITIAL_SECTION;
+  }
+
+  const resolved = resolveCanonicalSection(section);
+  return resolved.status === "found" ? resolved.section : INITIAL_SECTION;
 }
 
 function AlbumLoading() {

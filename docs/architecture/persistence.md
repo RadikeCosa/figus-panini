@@ -17,7 +17,6 @@ Queda fuera de su responsabilidad:
 - definir las 980 posiciones del álbum;
 - calcular progreso, faltantes o repetidas;
 - manejar UI, estado React o rutas;
-- exportar o importar backups manuales;
 - sincronizar entre dispositivos o usuarios.
 
 ## Fronteras arquitectónicas
@@ -35,8 +34,8 @@ El sistema vigente separa estas responsabilidades:
   contrato usando la API nativa del navegador.
 - UI: consume el repositorio y las funciones de dominio; no debe acceder
   directamente a IndexedDB.
-- Backup futuro: podrá reutilizar conceptos, pero tendrá su propio contrato de
-  exportación e importación.
+- Backup: `domain/backup/collection-backup.ts` define un contrato JSON externo
+  separado del formato interno de IndexedDB.
 
 La frontera importante es que la UI no debe abrir bases IndexedDB ni leer object
 stores. Debe pedir una colección al repositorio, aplicar cambios con funciones
@@ -96,9 +95,31 @@ escrito por la misma app, puede estar corrupto, venir de una versión vieja o
 haber sido alterado por herramientas del navegador. Por eso se valida estructura
 y versión, y luego se normaliza con reglas del dominio.
 
-Este formato no es el formato definitivo de backup. El backup futuro puede
-compartir conceptos como `formatVersion` y `copiesByPosition`, pero no debe
-asumirse automáticamente que ambos contratos serán idénticos.
+Este formato no es el formato de backup. El backup comparte conceptos como
+`formatVersion` y `copiesByPosition`, pero agrega `type` y `exportedAt` y se
+valida como contrato externo transportable.
+
+## Formato de backup
+
+El respaldo manual vigente es JSON legible:
+
+```ts
+{
+  type: "figus-pani-backup",
+  formatVersion: 1,
+  exportedAt: string,
+  copiesByPosition: Record<string, number>
+}
+```
+
+`copiesByPosition` usa la misma clave técnica reversible del dominio, pero el
+contrato de backup no se considera idéntico al registro IndexedDB. El respaldo
+incluye identificador de tipo y fecha de exportación porque circula fuera del
+navegador y debe poder validarse antes de restaurar.
+
+La restauración no escribe directamente en IndexedDB. La UI valida el backup,
+obtiene una `CollectionState` normalizada y reemplaza la colección activa
+mediante `CollectionRepository.save()`.
 
 ## Versionado
 
@@ -239,6 +260,8 @@ IndexedDB.
 - Dato inexistente significa colección vacía.
 - Dato corrupto significa error explícito.
 - La UI no accede directamente a IndexedDB.
+- El backup es un contrato externo separado del formato persistido interno.
+- Restaurar un backup reemplaza la colección completa; no hay merge.
 
 ## Trade-offs
 
@@ -257,6 +280,11 @@ usuarios requerirían ampliar el contrato.
 Formato disperso frente a 980 registros:
 reduce almacenamiento y evita persistir ceros. El costo es que las faltantes se
 derivan cruzando contra el álbum canónico.
+
+Formato interno frente a backup:
+mantener contratos separados evita que un detalle de IndexedDB quede congelado
+como formato transportable. El costo es mantener validación y documentación para
+ambos contratos.
 
 Errores explícitos frente a recuperación silenciosa:
 protege datos corruptos de ser descartados sin aviso. El costo es que la UI

@@ -107,6 +107,64 @@ describe("AlbumBrowser", () => {
     expect(positionCards()).toHaveLength(19);
   });
 
+  it("opens a valid initial section from navigation", async () => {
+    render(
+      <AlbumBrowser
+        createRepository={() => fakeRepository(createEmptyCollection())}
+        initialSection="Argentina"
+      />,
+    );
+
+    expect(await screen.findByRole("heading", { level: 2, name: "Argentina" })).toBeTruthy();
+    expect((screen.getByLabelText("Sección del álbum") as HTMLSelectElement).value).toBe(
+      "Argentina",
+    );
+  });
+
+  it("opens PANINI when the initial section is invalid", async () => {
+    render(
+      <AlbumBrowser
+        createRepository={() => fakeRepository(createEmptyCollection())}
+        initialSection="Italia"
+      />,
+    );
+
+    expect(await screen.findByRole("heading", { level: 2, name: "PANINI" })).toBeTruthy();
+    expect((screen.getByLabelText("Sección del álbum") as HTMLSelectElement).value).toBe(
+      "PANINI",
+    );
+  });
+
+  it("opens PANINI, FWC and names with spaces or accents from initial section", async () => {
+    const first = render(
+      <AlbumBrowser
+        createRepository={() => fakeRepository(createEmptyCollection())}
+        initialSection="FWC"
+      />,
+    );
+
+    expect(await screen.findByRole("heading", { level: 2, name: "FWC" })).toBeTruthy();
+    first.unmount();
+
+    const second = render(
+      <AlbumBrowser
+        createRepository={() => fakeRepository(createEmptyCollection())}
+        initialSection="Corea del Sur"
+      />,
+    );
+    expect(await screen.findByRole("heading", { level: 2, name: "Corea del Sur" })).toBeTruthy();
+    second.unmount();
+
+    render(
+      <AlbumBrowser
+        createRepository={() => fakeRepository(createEmptyCollection())}
+        initialSection="Mexico"
+      />,
+    );
+
+    expect(await screen.findByRole("heading", { level: 2, name: "México" })).toBeTruthy();
+  });
+
   it("navigates to a selection and shows its 20 positions", async () => {
     const collection = setCopies(createEmptyCollection(), mexico12, 1);
 

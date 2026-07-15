@@ -21,12 +21,24 @@ La navegación respeta la definición canónica existente:
 La UI importa la estructura desde `domain/album/canonical-album.ts`. No duplica
 nombres, grupos, orden ni rangos.
 
-## Sección inicial
+## Sección inicial y enlaces
 
 La sección inicial es `PANINI`.
 
 Es la primera posición global del álbum y permite mostrar una pantalla cargada
 con una grilla mínima antes de que Pedro elija un grupo o selección.
+
+La ruta también acepta `?section=` para abrir una sección desde otras vistas,
+por ejemplo:
+
+```text
+/album?section=Argentina
+/album?section=Corea%20del%20Sur
+```
+
+El parámetro se resuelve contra nombres canónicos con las mismas reglas de
+normalización del dominio. Si es inválido, la pantalla usa `PANINI` como
+fallback. El selector queda sincronizado con la sección inicial resuelta.
 
 ## Flujo de carga
 
@@ -113,8 +125,9 @@ enorme en teléfono. El costo es que comparar secciones requiere cambiar el
 selector.
 
 Navegación local frente a URL persistida:
-la sección seleccionada vive en estado local porque todavía no hay necesidad de
-compartir enlaces profundos. El costo es que recargar vuelve a `PANINI`.
+la sección seleccionada vive en estado local después de la carga inicial. El
+query string solo define la sección de entrada, suficiente para saltar desde
+faltantes o repetidas sin acoplar la UI a una posición individual.
 
 Grilla visual frente a tabla:
 la grilla se parece más al uso junto al álbum físico y permite lectura rápida de
