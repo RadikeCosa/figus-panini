@@ -184,8 +184,8 @@ en una `CollectionState`: cantidad total de copias, copias repetidas y estado
 `missing`, `owned` o `duplicate`. Esta operación es de solo lectura y no guarda
 ni modifica la colección.
 
-La misma lógica puede reutilizarse más adelante en entrada rápida, pero esa
-pantalla todavía no registra cambios.
+La misma lógica se reutiliza en entrada rápida, donde la escritura queda
+separada en una acción explícita posterior a la consulta.
 
 ## 8. Operaciones Disponibles
 

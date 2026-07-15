@@ -1,5 +1,5 @@
-import { PlaceholderPage } from "../_components/placeholder-page";
+import { QuickEntryFlow } from "./_components/quick-entry-flow";
 
 export default function QuickEntryPage() {
-  return <PlaceholderPage title="Carga rápida" />;
+  return <QuickEntryFlow />;
 }

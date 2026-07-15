@@ -155,14 +155,19 @@ Este documento guía la secuencia de trabajo. No registra trabajo ya realizado n
 
 ### 6. Entrada rápida
 
-- Estado: pendiente.
+- Estado: completado.
 - Objetivo: registrar figuritas nuevas con el menor número posible de pasos.
-- Alcance: carga rápida de cantidades y retroalimentación inmediata.
+- Alcance: carga rápida por sección y número, sugerencias progresivas, suma de
+  una copia, deshacer de la última carga exitosa y persistencia inmediata.
 - Dependencias: persistencia y flujo principal del álbum.
 - Resultado verificable: una figurita puede sumarse y quedar persistida de inmediato.
-- Criterios de aceptación: la acción es clara, reversible cuando aplique y sin fricción innecesaria.
-- Validaciones esperadas: pruebas de interacción y persistencia.
-- Documentación que debería actualizarse: `docs/product/mvp-scope.md`.
+- Criterios de aceptación: la acción es clara, reutiliza la validación canónica,
+  bloquea controles durante el guardado, revierte ante error y permite deshacer
+  solo la última suma exitosa.
+- Validaciones esperadas: pruebas de interacción con repositorio inyectado,
+  lint, build y validación en navegador con IndexedDB real.
+- Documentación que debería actualizarse: `docs/product/mvp-scope.md` y
+  `docs/architecture/quick-entry.md` si cambia el flujo.
 
 ### 7. Faltantes y repetidas
 

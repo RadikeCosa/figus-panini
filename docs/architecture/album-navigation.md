@@ -120,9 +120,10 @@ Grilla visual frente a tabla:
 la grilla se parece más al uso junto al álbum físico y permite lectura rápida de
 estado. El costo es que una tabla sería más densa para revisión masiva.
 
-Solo lectura frente a edición inmediata:
-la escritura se agregó en `/album` porque ya existían navegación, proyección de
-estado y repositorio. Se mantiene fuera de entrada rápida para no mezclar flujos.
+Edición contextual frente a entrada rápida:
+la escritura desde `/album` sirve para corregir cantidades sin perder contexto.
+La entrada rápida vive en `/quick-entry` como flujo separado para sumar
+figuritas de a una con menos pasos.
 
 Bloqueo breve frente a cola compleja:
 la UI deshabilita los controles mientras guarda. El costo es que taps muy
@@ -133,7 +134,6 @@ coherencia entre UI e IndexedDB.
 
 Todavía no existe en `/album`:
 
-- entrada rápida funcional;
 - nombres de jugadores;
 - imágenes, escudos o metadatos editoriales;
 - backup, restauración o PWA.

@@ -1,9 +1,9 @@
-# UI y flujo de estado inicial
+# UI y flujo de estado
 
 ## Propósito
 
 Este documento describe las primeras superficies navegables implementadas:
-inicio con resumen y consulta rápida, y álbum editable.
+inicio con resumen y consulta rápida, álbum editable y entrada rápida.
 
 La implementación actual permite abrir la ruta principal, cargar la colección
 local mediante el repositorio, distinguir carga, éxito y error, y mostrar un
@@ -13,6 +13,9 @@ sección y número para saber si falta, está pegada o está repetida.
 La ruta `/album` permite recorrer el álbum canónico por sección, ver métricas de
 la sección seleccionada, leer el estado de cada posición y corregir cantidades
 con persistencia local.
+
+La ruta `/quick-entry` permite registrar figuritas de a una con la misma
+resolución canónica de sección y número que usa la consulta rápida.
 
 ## Frontera Server y Client Components
 
@@ -32,8 +35,12 @@ de la pantalla, la identidad visual de la aplicación y la composición general.
 necesita cargar IndexedDB, manejar reintentos, mantener la sección seleccionada
 localmente y guardar cambios de cantidad.
 
-Los placeholders de rutas futuras siguen siendo Server Components simples. No
-necesitan estado de navegador.
+`app/quick-entry/page.tsx` se mantiene como Server Component y compone
+`app/quick-entry/_components/quick-entry-flow.tsx`, que es Client Component
+porque necesita cargar IndexedDB, manejar el campo de entrada, sugerencias,
+guardado inmediato, rollback y deshacer de la última carga.
+
+Los placeholders de rutas futuras siguen siendo Server Components simples.
 
 ## Composición del repositorio
 
@@ -204,20 +211,46 @@ Interacción:
 - Enter consulta normalmente si no hay opción activa;
 - Escape cierra la lista.
 
-La misma lógica de parsing y resolución podrá reutilizarse en la futura entrada
-rápida, donde sí habrá escritura y persistencia.
+La misma lógica de parsing y resolución se reutiliza en entrada rápida, donde sí
+hay escritura y persistencia.
+
+## Entrada rápida
+
+La ruta `/quick-entry` reutiliza `parsePositionQuery` y
+`getCanonicalSectionSuggestions`. El flujo separa consulta y escritura:
+
+1. Pedro escribe o elige sección y número.
+2. El formulario resuelve la posición contra el álbum canónico y muestra su
+   estado actual.
+3. El botón `Agregar copia` suma una copia con `addCopy`.
+4. La UI guarda la colección completa mediante `CollectionRepository.save()`.
+5. Si el guardado termina bien, limpia el campo, devuelve el foco al input y
+   muestra una confirmación con `Deshacer`.
+
+El deshacer no es un historial general. Solo revierte la última suma exitosa de
+la sesión visible y usa `removeCopy`.
+
+Durante un guardado pendiente, el campo y los botones quedan deshabilitados. Si
+`save()` falla, la UI restaura la colección previa y muestra el mismo error
+operativo que usa el álbum editable:
+
+```text
+No fue posible guardar. Se restauró el estado anterior.
+```
+
+La arquitectura detallada del flujo vive en [Entrada rápida](quick-entry.md).
 
 ## Navegación inicial
 
 La ruta `/` está implementada.
 
-Existe una ruta funcional:
+Existen rutas funcionales:
 
 - `/album`: álbum navegable con edición de cantidades.
+- `/quick-entry`: entrada rápida con persistencia y deshacer de la última suma.
 
 Existen rutas placeholder para:
 
-- `/quick-entry`;
 - `/missing`;
 - `/duplicates`.
 
@@ -231,6 +264,7 @@ Los tests de UI viven junto al componente:
 ```text
 app/_components/collection-dashboard.test.tsx
 app/album/_components/album-browser.test.tsx
+app/quick-entry/_components/quick-entry-flow.test.tsx
 ```
 
 Usan React Testing Library con jsdom. No prueban IndexedDB real; inyectan
@@ -272,6 +306,16 @@ Cubren:
 - rollback ante error de guardado;
 - reintento después de error;
 - ausencia de nuevas lecturas del repositorio al editar;
+- entrada rápida loading/ready/error;
+- consulta de una posición antes de sumar;
+- sugerencias de sección por click y teclado;
+- suma de primera copia y copia repetida;
+- bloqueo de doble suma durante guardado;
+- rollback ante error de guardado;
+- deshacer de la última suma exitosa;
+- rollback ante error al deshacer;
+- persistencia visible tras remount del flujo;
+- soporte de `PANINI`, `FWC` y selecciones;
 - acceso para volver al inicio;
 - accesos principales;
 - placeholders honestos.
@@ -301,9 +345,8 @@ mostrar loading evita datos falsos mientras IndexedDB abre. El costo es un
 estado visual adicional.
 
 Consulta de solo lectura frente a entrada rápida:
-la consulta permite verificar el estado de una figurita sin abrir todavía el
-flujo de carga. El costo es que el usuario todavía no puede sumar o quitar
-copias desde esa superficie.
+la consulta del inicio permite verificar estado sin escribir datos; entrada
+rápida separa esa acción de la carga persistida para mantener el resumen simple.
 
 Bloqueo breve de edición frente a cola de mutaciones:
 durante `repository.save()` los controles de cantidad quedan deshabilitados.
@@ -315,7 +358,6 @@ un estado que no pudo persistirse.
 
 Todavía no existe:
 
-- entrada rápida funcional;
 - vista real de faltantes;
 - vista real de repetidas;
 - backup o restauración;
@@ -326,6 +368,7 @@ Todavía no existe:
 
 - [Modelo de dominio](domain-model.md)
 - [Navegación del álbum](album-navigation.md)
+- [Entrada rápida](quick-entry.md)
 - [Persistencia local](persistence.md)
 - [Roadmap de implementación](../planning/implementation-roadmap.md)
 - [Definición del producto](../product/product-definition.md)
