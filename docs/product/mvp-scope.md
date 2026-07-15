@@ -8,6 +8,7 @@
 - Corregir la cantidad de una figurita.
 - Consultar faltantes.
 - Consultar repetidas.
+- Registrar la entrega de una repetida durante un intercambio.
 - Exportar respaldo técnico.
 - Restaurar respaldo técnico validado.
 - Mantener persistencia local con comportamiento offline-first.
@@ -51,6 +52,12 @@ Pedro filtra o revisa solo las figuritas que aún no tiene.
 ### Consultar repetidas
 
 Pedro revisa las figuritas con copias extras disponibles para cambio.
+
+### Registrar entrega de una repetida
+
+Pedro marca que entregó una copia repetida. La app descuenta solo esa copia
+extra, mantiene la figurita principal y permite deshacer la última entrega
+exitosa.
 
 ### Exportar respaldo
 

@@ -86,22 +86,23 @@ self.addEventListener("fetch", (event) => {
 
 async function handleNavigationRequest(request, url) {
   const cache = await caches.open(SHELL_CACHE);
-  const cachedRoute = await cache.match(url.pathname);
+  const shellCacheKey = buildShellNavigationCacheKey(url);
+  const cachedRoute = shellCacheKey ? await cache.match(shellCacheKey) : null;
 
-  if (cachedRoute && SHELL_ROUTES.has(url.pathname)) {
+  if (cachedRoute && shellCacheKey) {
     return cachedRoute;
   }
 
   try {
     const response = await fetch(request);
 
-    if (response.ok && SHELL_ROUTES.has(url.pathname)) {
-      await cache.put(url.pathname, response.clone());
+    if (response.ok && shellCacheKey) {
+      await cache.put(shellCacheKey, response.clone());
     }
 
     return response;
   } catch {
-    if (SHELL_ROUTES.has(url.pathname)) {
+    if (shellCacheKey) {
       const cachedHome = await cache.match("/");
 
       if (cachedHome) {
@@ -117,6 +118,14 @@ async function handleNavigationRequest(request, url) {
       },
     );
   }
+}
+
+function buildShellNavigationCacheKey(url) {
+  if (!SHELL_ROUTES.has(url.pathname)) {
+    return null;
+  }
+
+  return url.pathname;
 }
 
 async function handleAssetRequest(request) {

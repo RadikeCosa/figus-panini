@@ -2,8 +2,10 @@
 
 ## Propósito
 
-`/missing` y `/duplicates` son vistas de solo lectura para revisar la colección
-persistida sin modificar cantidades.
+`/missing` es una vista de solo lectura para revisar faltantes.
+
+`/duplicates` permite revisar repetidas y realizar correcciones acotadas sobre
+esas posiciones sin entrar al álbum completo.
 
 `/missing` ayuda a identificar posiciones faltantes. `/duplicates` ayuda a
 identificar copias disponibles para cambio.
@@ -48,6 +50,29 @@ La vista distingue dos métricas:
 
 Ejemplo: `Argentina 7` con 4 copias cuenta como 1 posición con repetidas y 3
 copias repetidas.
+
+Cada posición con repetidas ofrece dos acciones distintas:
+
+- `Entregué una`: registra que Pedro entregó una copia repetida durante un
+  intercambio. Resta exactamente una copia con `removeCopy`, mantiene como
+  mínimo la copia principal y desaparece de la lista si queda en una copia total.
+- `Corregir cantidad`: abre un editor compacto para ajustar la cantidad total
+  registrada con `setCopies`, incluso a cero cuando la carga previa fue errónea.
+
+La diferencia semántica es intencional: entregar una repetida representa un
+intercambio seguro que no elimina la figurita principal; corregir cantidad
+representa una rectificación del dato guardado y puede volver la posición
+faltante.
+
+Ambas acciones actualizan la colección local, guardan la colección completa con
+`CollectionRepository.save()` y recalculan la proyección de repetidas desde el
+estado resultante. Mientras un guardado está pendiente, los controles quedan
+deshabilitados para evitar escrituras simultáneas.
+
+Si `save()` falla, la vista restaura la colección previa y muestra un error
+accesible sin recargar IndexedDB. La acción `Entregué una` muestra una
+confirmación breve con `Deshacer`; ese deshacer solo aplica a la última entrega
+exitosa visible y guarda nuevamente la colección restaurada.
 
 ## Agrupación
 
@@ -105,7 +130,6 @@ para este incremento y evita diseñar deep links de grilla antes de necesitarlos
 
 Estas vistas no implementan:
 
-- edición de cantidades;
 - copiado de listas;
 - enlaces a posición individual dentro del álbum.
 

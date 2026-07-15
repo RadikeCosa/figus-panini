@@ -108,6 +108,19 @@ El service worker no cachea solicitudes remotas, métodos distintos de `GET` ni
 datos de respaldo seleccionados por el usuario. Tampoco intenta cachear APIs que
 no existen en el MVP.
 
+Las navegaciones de shell se cachean por `pathname`, no por cada query string.
+Esto evita guardar una copia arbitraria de `/album` para cada parámetro posible.
+Cuando la URL visible incluye una sección, por ejemplo:
+
+```text
+/album?section=México
+```
+
+el navegador conserva esa URL y el cliente de `/album` lee `section` desde la
+URL visible. Así el shell cacheado de `/album` puede abrir la sección solicitada
+también bajo control del service worker y offline, siempre que la ruta del álbum
+haya quedado disponible después de una visita online.
+
 ## Rutas disponibles offline
 
 Después de una primera carga online quedan disponibles:
@@ -201,11 +214,14 @@ incremento se verifican:
 ruta base `/album` durante la primera visita online. Una nueva versión del
 service worker vuelve a instalar el shell y actualiza esa respuesta cacheada.
 
-Recargas directas offline de rutas principales sin query están cubiertas.
-Parámetros de query no visitados, como una sección específica del álbum, pueden
-resolver a la ruta base cacheada. No se usa un fallback engañoso para rutas
-desconocidas: si una ruta no pertenece al shell y no está cacheada, se muestra
-una página mínima de ruta no disponible sin conexión.
+Recargas directas offline de rutas principales están cubiertas. En `/album`, el
+query `section` se preserva como parte de la URL visible y se resuelve en el
+cliente contra las secciones canónicas. Si la sección es inválida, `/album`
+vuelve a `PANINI`.
+
+No se usa un fallback engañoso para rutas desconocidas: si una ruta no pertenece
+al shell y no está cacheada, se muestra una página mínima de ruta no disponible
+sin conexión.
 
 ## Trade-offs
 

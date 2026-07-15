@@ -172,14 +172,19 @@ Este documento guía la secuencia de trabajo. No registra trabajo ya realizado n
 ### 7. Faltantes y repetidas
 
 - Estado: completado.
-- Objetivo: facilitar consultas de listas derivadas.
-- Alcance: vistas funcionales de faltantes y repetidas, filtros por sección,
-  agrupación canónica y navegación hacia la sección correspondiente del álbum.
+- Objetivo: facilitar consultas de listas derivadas y registrar intercambios
+  simples de repetidas.
+- Alcance: vista funcional de faltantes, vista funcional de repetidas, filtros
+  por sección, agrupación canónica, navegación hacia la sección correspondiente
+  del álbum, entrega de una copia repetida y corrección explícita de cantidad
+  total en repetidas.
 - Dependencias: dominio puro y datos persistidos.
 - Resultado verificable: Pedro puede revisar faltantes y repetidas sin ambigüedad.
 - Criterios de aceptación: se derivan desde la cantidad real, distinguen
-  posiciones con repetidas de copias repetidas, respetan el orden canónico, no
-  modifican la colección y no recargan IndexedDB al filtrar.
+  posiciones con repetidas de copias repetidas, respetan el orden canónico,
+  filtran sin recargar IndexedDB, guardan cambios de repetidas mediante
+  `CollectionRepository.save()`, bloquean escrituras simultáneas y revierten la
+  vista si falla la persistencia.
 - Validaciones esperadas: tests de dominio y UI con repositorio inyectado,
   lint, build y validación en navegador con IndexedDB real.
 - Documentación que debería actualizarse: `docs/product/mvp-scope.md` y
@@ -217,7 +222,8 @@ Este documento guía la secuencia de trabajo. No registra trabajo ya realizado n
 - Estado: completado.
 - Alcance: manifest, iconos, service worker, caché mínima y validación offline.
 - Resultado verificable: la app puede instalarse y abrir superficies principales
-  sin conexión después de una primera carga.
+  sin conexión después de una primera carga, preservando la sección solicitada
+  en `/album?section=...`.
 - Validaciones esperadas: tests de manifest, registro, indicador offline y
   configuración de caché; lint; build; revisión en navegador de producción de
   instalación, actualización y comportamiento offline.

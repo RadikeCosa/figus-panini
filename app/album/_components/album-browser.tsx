@@ -61,7 +61,7 @@ export function AlbumBrowser({
 }: AlbumBrowserProps) {
   const [loadState, setLoadState] = useState<LoadState>({ status: "loading" });
   const [selectedSection, setSelectedSection] = useState(() =>
-    resolveInitialSection(initialSection),
+    resolveInitialSection(readVisibleAlbumSection() ?? initialSection),
   );
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [isSaving, setIsSaving] = useState(false);
@@ -203,6 +203,14 @@ function resolveInitialSection(section: string | undefined): string {
 
   const resolved = resolveCanonicalSection(section);
   return resolved.status === "found" ? resolved.section : INITIAL_SECTION;
+}
+
+function readVisibleAlbumSection(): string | undefined {
+  if (typeof window === "undefined") {
+    return undefined;
+  }
+
+  return new URLSearchParams(window.location.search).get("section") ?? undefined;
 }
 
 function AlbumLoading() {

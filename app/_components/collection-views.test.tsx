@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { expandCanonicalAlbumPositions } from "../../domain/album/canonical-album";
 import {
   createEmptyCollection,
+  getCopies,
   setCopies,
   type CollectionState,
 } from "../../domain/collection/collection";
@@ -276,12 +277,365 @@ describe("CollectionViews duplicates", () => {
         .getAttribute("href"),
     ).toBe("/album?section=Argentina");
   });
+
+  it("registers one delivered duplicate and persists the resulting collection", async () => {
+    const save = vi.fn<CollectionRepository["save"]>().mockResolvedValue(undefined);
+    const collection = setCopies(createEmptyCollection(), argentina7, 3);
+
+    render(
+      <CollectionViews
+        mode="duplicates"
+        createRepository={() => fakeRepository(collection, save)}
+      />,
+    );
+
+    expect(await screen.findByRole("heading", { name: "2 copias repetidas" })).toBeTruthy();
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Registrar entrega de una repetida de Argentina 7",
+      }),
+    );
+
+    expect(await screen.findByText("Argentina 7 actualizada.")).toBeTruthy();
+    expect(screen.getByText("Ahora tenés 2 copias y 1 repetida.")).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "1 copias repetidas" })).toBeTruthy();
+    expect(screen.getByText("2 copias totales · 1 repetidas")).toBeTruthy();
+    expect(save).toHaveBeenCalledTimes(1);
+    expect(getCopies(save.mock.calls[0][0], argentina7)).toBe(2);
+  });
+
+  it("removes the position from duplicates when delivering leaves one copy", async () => {
+    const save = vi.fn<CollectionRepository["save"]>().mockResolvedValue(undefined);
+    const collection = setCopies(createEmptyCollection(), argentina7, 2);
+
+    render(
+      <CollectionViews
+        mode="duplicates"
+        createRepository={() => fakeRepository(collection, save)}
+      />,
+    );
+
+    expect(await screen.findByRole("heading", { name: "1 copias repetidas" })).toBeTruthy();
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Registrar entrega de una repetida de Argentina 7",
+      }),
+    );
+
+    expect(await screen.findByText("Ahora tenés 1 copia y ninguna repetida.")).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "0 copias repetidas" })).toBeTruthy();
+    expect(screen.getByText("No tenés figuritas repetidas.")).toBeTruthy();
+    expect(screen.queryByText("Argentina 7")).toBeNull();
+    expect(getCopies(save.mock.calls[0][0], argentina7)).toBe(1);
+  });
+
+  it("blocks duplicate delivery while a save is pending", async () => {
+    let resolveSave: (() => void) | null = null;
+    const save = vi.fn<CollectionRepository["save"]>(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveSave = resolve;
+        }),
+    );
+    const collection = setCopies(createEmptyCollection(), argentina7, 3);
+
+    render(
+      <CollectionViews
+        mode="duplicates"
+        createRepository={() => fakeRepository(collection, save)}
+      />,
+    );
+
+    await screen.findByRole("heading", { name: "2 copias repetidas" });
+    const deliverButton = screen.getByRole("button", {
+      name: "Registrar entrega de una repetida de Argentina 7",
+    }) as HTMLButtonElement;
+
+    fireEvent.click(deliverButton);
+
+    expect(await screen.findByText("Guardando cambios...")).toBeTruthy();
+    expect(deliverButton.disabled).toBe(true);
+    fireEvent.click(deliverButton);
+    expect(save).toHaveBeenCalledTimes(1);
+
+    resolveSave?.();
+    expect(await screen.findByText("Argentina 7 actualizada.")).toBeTruthy();
+  });
+
+  it("rolls back duplicate delivery when saving fails and allows retry", async () => {
+    const save = vi
+      .fn<CollectionRepository["save"]>()
+      .mockRejectedValueOnce(new Error("boom"))
+      .mockResolvedValueOnce(undefined);
+    const collection = setCopies(createEmptyCollection(), argentina7, 2);
+
+    render(
+      <CollectionViews
+        mode="duplicates"
+        createRepository={() => fakeRepository(collection, save)}
+      />,
+    );
+
+    await screen.findByRole("heading", { name: "1 copias repetidas" });
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Registrar entrega de una repetida de Argentina 7",
+      }),
+    );
+
+    expect((await screen.findByRole("alert")).textContent).toContain(
+      "No fue posible registrar la entrega de Argentina 7.",
+    );
+    expect(screen.getByRole("heading", { name: "1 copias repetidas" })).toBeTruthy();
+    expect(screen.getByText("2 copias totales · 1 repetidas")).toBeTruthy();
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Registrar entrega de una repetida de Argentina 7",
+      }),
+    );
+
+    expect(await screen.findByText("Ahora tenés 1 copia y ninguna repetida.")).toBeTruthy();
+    expect(save).toHaveBeenCalledTimes(2);
+  });
+
+  it("undoes only the last delivered duplicate", async () => {
+    const save = vi.fn<CollectionRepository["save"]>().mockResolvedValue(undefined);
+    const collection = setCopies(createEmptyCollection(), argentina7, 2);
+
+    render(
+      <CollectionViews
+        mode="duplicates"
+        createRepository={() => fakeRepository(collection, save)}
+      />,
+    );
+
+    await screen.findByRole("heading", { name: "1 copias repetidas" });
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Registrar entrega de una repetida de Argentina 7",
+      }),
+    );
+    expect(await screen.findByText("Ahora tenés 1 copia y ninguna repetida.")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Deshacer" }));
+
+    expect(await screen.findByText("Cambio deshecho.")).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "1 copias repetidas" })).toBeTruthy();
+    expect(screen.getByText("2 copias totales · 1 repetidas")).toBeTruthy();
+    expect(save).toHaveBeenCalledTimes(2);
+    expect(getCopies(save.mock.calls[1][0], argentina7)).toBe(2);
+  });
+
+  it("keeps the delivered state when undo fails", async () => {
+    const save = vi
+      .fn<CollectionRepository["save"]>()
+      .mockResolvedValueOnce(undefined)
+      .mockRejectedValueOnce(new Error("boom"));
+    const collection = setCopies(createEmptyCollection(), argentina7, 2);
+
+    render(
+      <CollectionViews
+        mode="duplicates"
+        createRepository={() => fakeRepository(collection, save)}
+      />,
+    );
+
+    await screen.findByRole("heading", { name: "1 copias repetidas" });
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Registrar entrega de una repetida de Argentina 7",
+      }),
+    );
+    expect(await screen.findByText("Ahora tenés 1 copia y ninguna repetida.")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Deshacer" }));
+
+    expect((await screen.findByRole("alert")).textContent).toContain(
+      "No fue posible deshacer el último cambio.",
+    );
+    expect(screen.getByRole("heading", { name: "0 copias repetidas" })).toBeTruthy();
+    expect(screen.getByText("No tenés figuritas repetidas.")).toBeTruthy();
+  });
+
+  it("opens and cancels the quantity editor", async () => {
+    const collection = setCopies(createEmptyCollection(), argentina7, 3);
+
+    render(<CollectionViews mode="duplicates" createRepository={() => fakeRepository(collection)} />);
+
+    await screen.findByRole("heading", { name: "2 copias repetidas" });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Corregir cantidad de Argentina 7" }),
+    );
+
+    expect(
+      (screen.getByLabelText("Cantidad total registrada") as HTMLInputElement).value,
+    ).toBe("3");
+    fireEvent.click(screen.getByRole("button", { name: "Cancelar" }));
+
+    expect(screen.queryByLabelText("Cantidad total registrada")).toBeNull();
+    expect(screen.getByRole("heading", { name: "2 copias repetidas" })).toBeTruthy();
+  });
+
+  it("corrects duplicate quantity to two and persists it", async () => {
+    const save = vi.fn<CollectionRepository["save"]>().mockResolvedValue(undefined);
+    const collection = setCopies(createEmptyCollection(), argentina7, 3);
+
+    render(
+      <CollectionViews
+        mode="duplicates"
+        createRepository={() => fakeRepository(collection, save)}
+      />,
+    );
+
+    await screen.findByRole("heading", { name: "2 copias repetidas" });
+    openQuantityEditor("Argentina 7");
+    fireEvent.change(screen.getByLabelText("Cantidad total registrada"), {
+      target: { value: "2" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Guardar cantidad" }));
+
+    expect(await screen.findByText("Argentina 7 corregida.")).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "1 copias repetidas" })).toBeTruthy();
+    expect(getCopies(save.mock.calls[0][0], argentina7)).toBe(2);
+  });
+
+  it("corrects duplicate quantity to one and removes it from duplicates", async () => {
+    const save = vi.fn<CollectionRepository["save"]>().mockResolvedValue(undefined);
+    const collection = setCopies(createEmptyCollection(), argentina7, 2);
+
+    render(
+      <CollectionViews
+        mode="duplicates"
+        createRepository={() => fakeRepository(collection, save)}
+      />,
+    );
+
+    await screen.findByRole("heading", { name: "1 copias repetidas" });
+    openQuantityEditor("Argentina 7");
+    fireEvent.change(screen.getByLabelText("Cantidad total registrada"), {
+      target: { value: "1" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Guardar cantidad" }));
+
+    expect(await screen.findByText("Ahora tenés 1 copia y ninguna repetida.")).toBeTruthy();
+    expect(screen.getByText("No tenés figuritas repetidas.")).toBeTruthy();
+    expect(getCopies(save.mock.calls[0][0], argentina7)).toBe(1);
+  });
+
+  it("warns before saving zero and marks the position as missing", async () => {
+    const save = vi.fn<CollectionRepository["save"]>().mockResolvedValue(undefined);
+    const collection = setCopies(createEmptyCollection(), argentina7, 2);
+
+    render(
+      <CollectionViews
+        mode="duplicates"
+        createRepository={() => fakeRepository(collection, save)}
+      />,
+    );
+
+    await screen.findByRole("heading", { name: "1 copias repetidas" });
+    openQuantityEditor("Argentina 7");
+    fireEvent.change(screen.getByLabelText("Cantidad total registrada"), {
+      target: { value: "0" },
+    });
+
+    expect(
+      screen.getByText("Esta figurita quedará marcada como faltante."),
+    ).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Guardar cantidad" }));
+
+    expect(await screen.findByText("Ahora figura como faltante.")).toBeTruthy();
+    expect(getCopies(save.mock.calls[0][0], argentina7)).toBe(0);
+  });
+
+  it("increases quantity from the editor and persists it", async () => {
+    const save = vi.fn<CollectionRepository["save"]>().mockResolvedValue(undefined);
+    const collection = setCopies(createEmptyCollection(), argentina7, 2);
+
+    render(
+      <CollectionViews
+        mode="duplicates"
+        createRepository={() => fakeRepository(collection, save)}
+      />,
+    );
+
+    await screen.findByRole("heading", { name: "1 copias repetidas" });
+    openQuantityEditor("Argentina 7");
+    fireEvent.click(
+      screen.getByRole("button", { name: "Aumentar cantidad de Argentina 7" }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Guardar cantidad" }));
+
+    expect(await screen.findByText("Ahora tenés 3 copias y 2 repetidas.")).toBeTruthy();
+    expect(getCopies(save.mock.calls[0][0], argentina7)).toBe(3);
+  });
+
+  it("rejects negative, decimal and text quantities before saving", async () => {
+    const save = vi.fn<CollectionRepository["save"]>().mockResolvedValue(undefined);
+    const collection = setCopies(createEmptyCollection(), argentina7, 2);
+
+    render(
+      <CollectionViews
+        mode="duplicates"
+        createRepository={() => fakeRepository(collection, save)}
+      />,
+    );
+
+    await screen.findByRole("heading", { name: "1 copias repetidas" });
+    openQuantityEditor("Argentina 7");
+
+    for (const value of ["-1", "1.5", "abc"]) {
+      fireEvent.change(screen.getByLabelText("Cantidad total registrada"), {
+        target: { value },
+      });
+
+      expect(screen.getByRole("alert").textContent).toContain(
+        "Ingresá una cantidad entera sin decimales.",
+      );
+      expect(
+        (screen.getByRole("button", { name: "Guardar cantidad" }) as HTMLButtonElement)
+          .disabled,
+      ).toBe(true);
+    }
+
+    expect(save).not.toHaveBeenCalled();
+  });
+
+  it("rolls back quantity correction when saving fails", async () => {
+    const save = vi.fn<CollectionRepository["save"]>().mockRejectedValue(new Error("boom"));
+    const collection = setCopies(createEmptyCollection(), argentina7, 3);
+
+    render(
+      <CollectionViews
+        mode="duplicates"
+        createRepository={() => fakeRepository(collection, save)}
+      />,
+    );
+
+    await screen.findByRole("heading", { name: "2 copias repetidas" });
+    openQuantityEditor("Argentina 7");
+    fireEvent.change(screen.getByLabelText("Cantidad total registrada"), {
+      target: { value: "1" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Guardar cantidad" }));
+
+    expect((await screen.findByRole("alert")).textContent).toContain(
+      "No fue posible corregir la cantidad de Argentina 7.",
+    );
+    expect(screen.getByRole("heading", { name: "2 copias repetidas" })).toBeTruthy();
+    expect(screen.getByText("3 copias totales · 2 repetidas")).toBeTruthy();
+  });
 });
 
-function fakeRepository(collection: CollectionState): CollectionRepository {
+function fakeRepository(
+  collection: CollectionState,
+  save: CollectionRepository["save"] = async () => undefined,
+): CollectionRepository {
   return {
     load: async () => collection,
-    save: async () => undefined,
+    save,
     clear: async () => undefined,
   };
 }
@@ -290,4 +644,10 @@ function selectSection(section: string): void {
   fireEvent.change(screen.getByLabelText(/Filtrar/), {
     target: { value: section },
   });
+}
+
+function openQuantityEditor(positionLabel: string): void {
+  fireEvent.click(
+    screen.getByRole("button", { name: `Corregir cantidad de ${positionLabel}` }),
+  );
 }

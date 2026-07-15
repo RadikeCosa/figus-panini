@@ -20,8 +20,9 @@ con persistencia local.
 La ruta `/quick-entry` permite registrar figuritas de a una con la misma
 resolución canónica de sección y número que usa la consulta rápida.
 
-Las rutas `/missing` y `/duplicates` muestran listas de solo lectura derivadas
-de la colección persistida.
+La ruta `/missing` muestra una lista de solo lectura derivada de la colección
+persistida. La ruta `/duplicates` muestra repetidas y permite registrar
+entregas o corregir cantidades de esas posiciones.
 
 La ruta `/backup` permite exportar y restaurar la colección con un contrato JSON
 versionado y validado antes de reemplazar datos.
@@ -51,8 +52,8 @@ guardado inmediato, rollback y deshacer de la última carga.
 
 `app/missing/page.tsx` y `app/duplicates/page.tsx` se mantienen como Server
 Components y componen `app/_components/collection-views.tsx`, que es Client
-Component porque carga IndexedDB, mantiene el filtro local y proyecta listas
-derivadas.
+Component porque carga IndexedDB, mantiene el filtro local, proyecta listas
+derivadas y, en repetidas, guarda correcciones mediante el repositorio.
 
 `app/backup/page.tsx` se mantiene como Server Component y compone
 `app/backup/_components/backup-manager.tsx`, que es Client Component porque
@@ -282,6 +283,21 @@ cantidad faltante por sección, progreso de sección y posiciones faltantes.
 `/duplicates` muestra copias repetidas totales, cantidad de posiciones con
 repetidas y, por sección, cada posición con copias totales y copias repetidas.
 
+Cada posición repetida separa dos acciones:
+
+- `Entregué una`: registra un intercambio ya realizado. Usa `removeCopy`, resta
+  una sola copia, nunca elimina la copia principal y ofrece `Deshacer` solo para
+  esa última entrega exitosa.
+- `Corregir cantidad`: abre un editor compacto de cantidad total. Usa
+  `setCopies`, permite aumentar, disminuir o guardar `0`, y advierte que la
+  figurita quedará marcada como faltante antes de confirmar cero.
+
+Ambas acciones aplican primero la operación pura del dominio sobre la colección
+local, guardan la colección completa con `repository.save()` y recalculan la
+vista desde el estado resultante. Durante el guardado, los controles quedan
+deshabilitados. Si el guardado falla, la UI restaura la colección previa y
+muestra un error con `role="alert"` sin volver a cargar todo.
+
 Ambas vistas usan un `select` nativo con `optgroup` para filtrar por sección y
 enlaces `Ver en álbum` hacia `/album?section=...`.
 
@@ -319,7 +335,8 @@ Existen rutas funcionales:
 - `/album`: álbum navegable con edición de cantidades.
 - `/quick-entry`: entrada rápida con persistencia y deshacer de la última suma.
 - `/missing`: lista funcional de faltantes con filtro por sección.
-- `/duplicates`: lista funcional de repetidas con filtro por sección.
+- `/duplicates`: lista funcional de repetidas con filtro por sección, entrega
+  de repetidas y corrección de cantidad total.
 - `/backup`: exportación y restauración validada de la colección.
 
 No quedan placeholders dentro de las superficies principales actuales.
@@ -394,8 +411,18 @@ Cubren:
 - diferencia entre posiciones repetidas y copias repetidas;
 - agrupación y orden canónico de repetidas;
 - filtros de repetidas sin recargar;
+- entrega de una repetida con persistencia y desaparición al quedar una copia;
+- bloqueo de doble entrega durante guardado;
+- rollback y reintento ante error al entregar;
+- deshacer de la última entrega y rollback ante error al deshacer;
+- editor de corrección de cantidad, cancelación, aumento, disminución y cero;
+- advertencia accesible antes de guardar cero;
+- rechazo de cantidades negativas, decimales o texto;
+- rollback ante error al corregir cantidad;
 - enlaces desde faltantes y repetidas hacia `/album?section=...`;
 - apertura de `/album` con sección inicial válida y fallback inválido;
+- apertura de `/album` desde la URL visible aunque el service worker entregue el
+  shell cacheado de la ruta base;
 - respaldo loading/ready/error;
 - exportación de colección vacía y parcial;
 - nombre de archivo de backup;

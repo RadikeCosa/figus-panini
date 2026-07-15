@@ -15,7 +15,7 @@ repetidas, sin cuentas, backend ni sincronización remota.
 - Álbum navegable por secciones y grupos.
 - Edición de cantidades desde el álbum.
 - Entrada rápida para cargar figuritas recién abiertas.
-- Vistas de faltantes y repetidas con filtros.
+- Vistas de faltantes y repetidas con filtros y acciones sobre repetidas.
 - Exportación y restauración de respaldo JSON validado.
 - Persistencia local en IndexedDB.
 - PWA instalable con uso offline después de una primera carga.
@@ -113,5 +113,5 @@ notificaciones push ni múltiples álbumes.
 
 - No incluye figuritas promocionales.
 - No incluye nombres de jugadores, imágenes, escudos ni rareza.
-- `/album` puede abrir una sección desde query string, pero no tiene deep link a
-  una posición individual dentro de la grilla.
+- `/album` puede abrir una sección desde query string, incluso bajo el service
+  worker, pero no tiene deep link a una posición individual dentro de la grilla.

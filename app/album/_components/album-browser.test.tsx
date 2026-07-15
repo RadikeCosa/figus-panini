@@ -28,6 +28,7 @@ const argentina18 = { section: "Argentina", position: "18" };
 
 afterEach(() => {
   cleanup();
+  window.history.replaceState(null, "", "/");
   vi.restoreAllMocks();
 });
 
@@ -163,6 +164,44 @@ describe("AlbumBrowser", () => {
     );
 
     expect(await screen.findByRole("heading", { level: 2, name: "México" })).toBeTruthy();
+  });
+
+  it("uses the visible query string when a cached shell is served for a section URL", async () => {
+    window.history.replaceState(
+      null,
+      "",
+      "/album?section=Rep%C3%BAblica%20Democr%C3%A1tica%20del%20Congo",
+    );
+
+    render(
+      <AlbumBrowser
+        createRepository={() => fakeRepository(createEmptyCollection())}
+        initialSection="PANINI"
+      />,
+    );
+
+    expect(
+      await screen.findByRole("heading", {
+        level: 2,
+        name: "República Democrática del Congo",
+      }),
+    ).toBeTruthy();
+    expect((screen.getByLabelText("Sección del álbum") as HTMLSelectElement).value).toBe(
+      "República Democrática del Congo",
+    );
+  });
+
+  it("falls back to PANINI when the visible query section is invalid", async () => {
+    window.history.replaceState(null, "", "/album?section=Italia");
+
+    render(
+      <AlbumBrowser
+        createRepository={() => fakeRepository(createEmptyCollection())}
+        initialSection="PANINI"
+      />,
+    );
+
+    expect(await screen.findByRole("heading", { level: 2, name: "PANINI" })).toBeTruthy();
   });
 
   it("navigates to a selection and shows its 20 positions", async () => {
