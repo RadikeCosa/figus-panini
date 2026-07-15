@@ -1,5 +1,5 @@
-import { PlaceholderPage } from "../_components/placeholder-page";
+import { AlbumBrowser } from "./_components/album-browser";
 
 export default function AlbumPage() {
-  return <PlaceholderPage title="Álbum" />;
+  return <AlbumBrowser />;
 }

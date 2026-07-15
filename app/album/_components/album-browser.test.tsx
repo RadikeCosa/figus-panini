@@ -1,0 +1,434 @@
+/**
+ * @vitest-environment jsdom
+ */
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  createEmptyCollection,
+  getCopies,
+  setCopies,
+  type CollectionState,
+} from "../../../domain/collection/collection";
+import type { CollectionRepository } from "../../../infrastructure/persistence/collection-repository";
+import { AlbumBrowser } from "./album-browser";
+
+const panini = { section: "PANINI", position: "00" };
+const fwc4 = { section: "FWC", position: "4" };
+const mexico1 = { section: "México", position: "1" };
+const mexico12 = { section: "México", position: "12" };
+const argentina7 = { section: "Argentina", position: "7" };
+const argentina18 = { section: "Argentina", position: "18" };
+
+afterEach(() => {
+  cleanup();
+  vi.restoreAllMocks();
+});
+
+describe("AlbumBrowser", () => {
+  it("shows a loading state before resolving", () => {
+    render(
+      <AlbumBrowser
+        createRepository={() => ({
+          load: () => new Promise<CollectionState>(() => undefined),
+          save: async () => undefined,
+          clear: async () => undefined,
+        })}
+      />,
+    );
+
+    expect(screen.getByText("Cargando álbum")).toBeTruthy();
+    expect(screen.queryByRole("heading", { level: 2, name: "PANINI" })).toBeNull();
+  });
+
+  it("shows an error and retries successfully", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const load = vi
+      .fn<() => Promise<CollectionState>>()
+      .mockRejectedValueOnce(new Error("boom"))
+      .mockResolvedValueOnce(createEmptyCollection());
+    const repository: CollectionRepository = {
+      load,
+      save: async () => undefined,
+      clear: async () => undefined,
+    };
+
+    render(<AlbumBrowser createRepository={() => repository} />);
+
+    expect(await screen.findByText("No fue posible cargar el álbum")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+
+    expect(await screen.findByRole("heading", { level: 2, name: "PANINI" })).toBeTruthy();
+    expect(load).toHaveBeenCalledTimes(2);
+  });
+
+  it("starts at PANINI with an empty collection", async () => {
+    render(<AlbumBrowser createRepository={() => fakeRepository(createEmptyCollection())} />);
+
+    expect(await screen.findByRole("heading", { level: 2, name: "PANINI" })).toBeTruthy();
+    expect(screen.getByText("Especiales")).toBeTruthy();
+    expect(screen.getByText("0 de 1 pegadas · 1 faltantes · 0 repetidas")).toBeTruthy();
+    expect(screen.getByText("0% de esta sección")).toBeTruthy();
+    expect((screen.getByLabelText("Sección del álbum") as HTMLSelectElement).value).toBe(
+      "PANINI",
+    );
+    expect(screen.getByLabelText("PANINI 00: Faltante")).toBeTruthy();
+  });
+
+  it("shows PANINI as owned and repeated when the collection has copies", async () => {
+    const collection = setCopies(createEmptyCollection(), panini, 3);
+
+    render(<AlbumBrowser createRepository={() => fakeRepository(collection)} />);
+
+    expect(await screen.findByRole("heading", { level: 2, name: "PANINI" })).toBeTruthy();
+    expect(screen.getByText("1 de 1 pegadas · 0 faltantes · 2 repetidas")).toBeTruthy();
+    expect(screen.getByLabelText("PANINI 00: 3 copias")).toBeTruthy();
+    expect(screen.getByText("2 repetidas")).toBeTruthy();
+  });
+
+  it("navigates to FWC and shows its 19 positions", async () => {
+    const collection = setCopies(createEmptyCollection(), fwc4, 1);
+
+    render(<AlbumBrowser createRepository={() => fakeRepository(collection)} />);
+
+    await screen.findByRole("heading", { level: 2, name: "PANINI" });
+    selectSection("FWC");
+
+    expect(screen.getByRole("heading", { level: 2, name: "FWC" })).toBeTruthy();
+    expect(screen.getByText("1 de 19 pegadas · 18 faltantes · 0 repetidas")).toBeTruthy();
+    expect(screen.getByLabelText("FWC 4: Pegada")).toBeTruthy();
+    expect(screen.getByLabelText("FWC 19: Faltante")).toBeTruthy();
+    expect(positionCards()).toHaveLength(19);
+  });
+
+  it("navigates to a selection and shows its 20 positions", async () => {
+    const collection = setCopies(createEmptyCollection(), mexico12, 1);
+
+    render(<AlbumBrowser createRepository={() => fakeRepository(collection)} />);
+
+    await screen.findByRole("heading", { level: 2, name: "PANINI" });
+    selectSection("México");
+
+    expect(screen.getByRole("heading", { level: 2, name: "México" })).toBeTruthy();
+    expect(screen.getByText("Grupo A")).toBeTruthy();
+    expect(screen.getByText("1 de 20 pegadas · 19 faltantes · 0 repetidas")).toBeTruthy();
+    expect(screen.getByLabelText("México 12: Pegada")).toBeTruthy();
+    expect(screen.getByLabelText("México 1: Faltante")).toBeTruthy();
+    expect(positionCards()).toHaveLength(20);
+  });
+
+  it("navigates between groups", async () => {
+    render(<AlbumBrowser createRepository={() => fakeRepository(createEmptyCollection())} />);
+
+    await screen.findByRole("heading", { level: 2, name: "PANINI" });
+    selectSection("México");
+    expect(screen.getByText("Grupo A")).toBeTruthy();
+
+    selectSection("Argentina");
+    expect(screen.getByRole("heading", { level: 2, name: "Argentina" })).toBeTruthy();
+    expect(screen.getByText("Grupo J")).toBeTruthy();
+  });
+
+  it("shows missing, owned and repeated position states", async () => {
+    const collection = setCopies(
+      setCopies(createEmptyCollection(), argentina7, 1),
+      argentina18,
+      3,
+    );
+
+    render(<AlbumBrowser createRepository={() => fakeRepository(collection)} />);
+
+    await screen.findByRole("heading", { level: 2, name: "PANINI" });
+    selectSection("Argentina");
+
+    expect(screen.getByText("2 de 20 pegadas · 18 faltantes · 2 repetidas")).toBeTruthy();
+    expect(screen.getByLabelText("Argentina 1: Faltante")).toBeTruthy();
+    expect(screen.getByLabelText("Argentina 7: Pegada")).toBeTruthy();
+    expect(screen.getByLabelText("Argentina 18: 3 copias")).toBeTruthy();
+    expect(screen.getAllByText("3 copias")).toHaveLength(2);
+  });
+
+  it("keeps the loaded collection without additional reads while navigating", async () => {
+    const load = vi.fn<() => Promise<CollectionState>>().mockResolvedValue(
+      setCopies(createEmptyCollection(), mexico1, 1),
+    );
+    const repository: CollectionRepository = {
+      load,
+      save: vi.fn<CollectionRepository["save"]>().mockResolvedValue(undefined),
+      clear: vi.fn<CollectionRepository["clear"]>().mockResolvedValue(undefined),
+    };
+
+    render(<AlbumBrowser createRepository={() => repository} />);
+
+    await screen.findByRole("heading", { level: 2, name: "PANINI" });
+    selectSection("México");
+    selectSection("Argentina");
+
+    expect(load).toHaveBeenCalledTimes(1);
+    expect(repository.save).not.toHaveBeenCalled();
+    expect(repository.clear).not.toHaveBeenCalled();
+  });
+
+  it("adds one copy from zero and saves the resulting collection", async () => {
+    const save = vi.fn<CollectionRepository["save"]>().mockResolvedValue(undefined);
+    const repository = fakeRepository(createEmptyCollection(), save);
+
+    render(<AlbumBrowser createRepository={() => repository} />);
+
+    await screen.findByRole("heading", { level: 2, name: "PANINI" });
+    fireEvent.click(screen.getByRole("button", { name: "Agregar copia de PANINI 00" }));
+
+    expect(await screen.findByText("Cambios guardados.")).toBeTruthy();
+    expect(screen.getByLabelText("PANINI 00: Pegada")).toBeTruthy();
+    expect(screen.getByText("1 de 1 pegadas · 0 faltantes · 0 repetidas")).toBeTruthy();
+    expect(save).toHaveBeenCalledTimes(1);
+    expect(getCopies(save.mock.calls[0][0], panini)).toBe(1);
+  });
+
+  it("adds up to several copies and shows repeated state", async () => {
+    const save = vi.fn<CollectionRepository["save"]>().mockResolvedValue(undefined);
+    const repository = fakeRepository(createEmptyCollection(), save);
+
+    render(<AlbumBrowser createRepository={() => repository} />);
+
+    await screen.findByRole("heading", { level: 2, name: "PANINI" });
+    await addPaniniCopy();
+    await addPaniniCopy();
+    await addPaniniCopy();
+
+    expect(screen.getByLabelText("PANINI 00: 3 copias")).toBeTruthy();
+    expect(screen.getByText("1 de 1 pegadas · 0 faltantes · 2 repetidas")).toBeTruthy();
+    expect(save).toHaveBeenCalledTimes(3);
+    expect(getCopies(save.mock.calls[2][0], panini)).toBe(3);
+  });
+
+  it("removes one copy and saves the change", async () => {
+    const save = vi.fn<CollectionRepository["save"]>().mockResolvedValue(undefined);
+    const repository = fakeRepository(setCopies(createEmptyCollection(), panini, 2), save);
+
+    render(<AlbumBrowser createRepository={() => repository} />);
+
+    await screen.findByRole("heading", { level: 2, name: "PANINI" });
+    fireEvent.click(screen.getByRole("button", { name: "Quitar copia de PANINI 00" }));
+
+    expect(await screen.findByText("Cambios guardados.")).toBeTruthy();
+    expect(screen.getByLabelText("PANINI 00: Pegada")).toBeTruthy();
+    expect(getCopies(save.mock.calls[0][0], panini)).toBe(1);
+  });
+
+  it("removes the last copy and returns to missing state", async () => {
+    const save = vi.fn<CollectionRepository["save"]>().mockResolvedValue(undefined);
+    const repository = fakeRepository(setCopies(createEmptyCollection(), panini, 1), save);
+
+    render(<AlbumBrowser createRepository={() => repository} />);
+
+    await screen.findByRole("heading", { level: 2, name: "PANINI" });
+    fireEvent.click(screen.getByRole("button", { name: "Quitar copia de PANINI 00" }));
+
+    expect(await screen.findByText("Cambios guardados.")).toBeTruthy();
+    expect(screen.getByLabelText("PANINI 00: Faltante")).toBeTruthy();
+    expect(screen.getByText("0 de 1 pegadas · 1 faltantes · 0 repetidas")).toBeTruthy();
+    expect(getCopies(save.mock.calls[0][0], panini)).toBe(0);
+  });
+
+  it("disables remove when quantity is zero", async () => {
+    render(<AlbumBrowser createRepository={() => fakeRepository(createEmptyCollection())} />);
+
+    await screen.findByRole("heading", { level: 2, name: "PANINI" });
+
+    expect(
+      (screen.getByRole("button", {
+        name: "Quitar copia de PANINI 00",
+      }) as HTMLButtonElement).disabled,
+    ).toBe(true);
+  });
+
+  it("updates section metrics when editing a selection", async () => {
+    const save = vi.fn<CollectionRepository["save"]>().mockResolvedValue(undefined);
+    const repository = fakeRepository(createEmptyCollection(), save);
+
+    render(<AlbumBrowser createRepository={() => repository} />);
+
+    await screen.findByRole("heading", { level: 2, name: "PANINI" });
+    selectSection("Argentina");
+    fireEvent.click(
+      screen.getByRole("button", { name: "Agregar copia de Argentina 7" }),
+    );
+    expect(await screen.findByText("Cambios guardados.")).toBeTruthy();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Agregar copia de Argentina 18" }),
+    );
+    expect(await screen.findByText("Cambios guardados.")).toBeTruthy();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Agregar copia de Argentina 18" }),
+    );
+
+    expect(await screen.findByText("2 de 20 pegadas · 18 faltantes · 1 repetidas")).toBeTruthy();
+    expect(screen.getByLabelText("Argentina 18: 2 copias")).toBeTruthy();
+  });
+
+  it("does not lose consecutive changes made after each save completes", async () => {
+    const save = vi.fn<CollectionRepository["save"]>().mockResolvedValue(undefined);
+    const repository = fakeRepository(createEmptyCollection(), save);
+
+    render(<AlbumBrowser createRepository={() => repository} />);
+
+    await screen.findByRole("heading", { level: 2, name: "PANINI" });
+    await addPaniniCopy();
+    await addPaniniCopy();
+
+    expect(screen.getByLabelText("PANINI 00: 2 copias")).toBeTruthy();
+    expect(save).toHaveBeenCalledTimes(2);
+    expect(getCopies(save.mock.calls[1][0], panini)).toBe(2);
+  });
+
+  it("blocks controls while a save is pending", async () => {
+    let resolveSave: (() => void) | null = null;
+    const save = vi.fn<CollectionRepository["save"]>(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveSave = resolve;
+        }),
+    );
+    const repository = fakeRepository(createEmptyCollection(), save);
+
+    render(<AlbumBrowser createRepository={() => repository} />);
+
+    await screen.findByRole("heading", { level: 2, name: "PANINI" });
+    fireEvent.click(screen.getByRole("button", { name: "Agregar copia de PANINI 00" }));
+
+    expect(await screen.findByText("Guardando cambios...")).toBeTruthy();
+    expect(
+      (screen.getByRole("button", {
+        name: "Agregar copia de PANINI 00",
+      }) as HTMLButtonElement).disabled,
+    ).toBe(true);
+    expect(save).toHaveBeenCalledTimes(1);
+
+    resolveSave?.();
+    expect(await screen.findByText("Cambios guardados.")).toBeTruthy();
+  });
+
+  it("rolls back and shows an error when saving fails", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const save = vi.fn<CollectionRepository["save"]>().mockRejectedValue(new Error("boom"));
+    const repository = fakeRepository(createEmptyCollection(), save);
+
+    render(<AlbumBrowser createRepository={() => repository} />);
+
+    await screen.findByRole("heading", { level: 2, name: "PANINI" });
+    fireEvent.click(screen.getByRole("button", { name: "Agregar copia de PANINI 00" }));
+
+    expect(await screen.findByRole("alert")).toBeTruthy();
+    expect(
+      screen.getByText("No fue posible guardar. Se restauró el estado anterior."),
+    ).toBeTruthy();
+    expect(screen.getByLabelText("PANINI 00: Faltante")).toBeTruthy();
+    expect(screen.getByText("0 de 1 pegadas · 1 faltantes · 0 repetidas")).toBeTruthy();
+  });
+
+  it("allows retrying an action after a save error", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const save = vi
+      .fn<CollectionRepository["save"]>()
+      .mockRejectedValueOnce(new Error("boom"))
+      .mockResolvedValueOnce(undefined);
+    const repository = fakeRepository(createEmptyCollection(), save);
+
+    render(<AlbumBrowser createRepository={() => repository} />);
+
+    await screen.findByRole("heading", { level: 2, name: "PANINI" });
+    fireEvent.click(screen.getByRole("button", { name: "Agregar copia de PANINI 00" }));
+    expect(await screen.findByText("No fue posible guardar. Se restauró el estado anterior.")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Agregar copia de PANINI 00" }));
+
+    expect(await screen.findByText("Cambios guardados.")).toBeTruthy();
+    expect(screen.getByLabelText("PANINI 00: Pegada")).toBeTruthy();
+    expect(save).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps the selected section after saving", async () => {
+    const save = vi.fn<CollectionRepository["save"]>().mockResolvedValue(undefined);
+    const repository = fakeRepository(createEmptyCollection(), save);
+
+    render(<AlbumBrowser createRepository={() => repository} />);
+
+    await screen.findByRole("heading", { level: 2, name: "PANINI" });
+    selectSection("Argentina");
+    fireEvent.click(
+      screen.getByRole("button", { name: "Agregar copia de Argentina 7" }),
+    );
+
+    expect(await screen.findByText("Cambios guardados.")).toBeTruthy();
+    expect(screen.getByRole("heading", { level: 2, name: "Argentina" })).toBeTruthy();
+    expect(screen.getByLabelText("Argentina 7: Pegada")).toBeTruthy();
+  });
+
+  it("does not load again when editing quantities", async () => {
+    const load = vi.fn<() => Promise<CollectionState>>().mockResolvedValue(createEmptyCollection());
+    const repository: CollectionRepository = {
+      load,
+      save: vi.fn<CollectionRepository["save"]>().mockResolvedValue(undefined),
+      clear: vi.fn<CollectionRepository["clear"]>().mockResolvedValue(undefined),
+    };
+
+    render(<AlbumBrowser createRepository={() => repository} />);
+
+    await screen.findByRole("heading", { level: 2, name: "PANINI" });
+    await addPaniniCopy();
+
+    expect(load).toHaveBeenCalledTimes(1);
+    expect(repository.save).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps a clear access back to the home page", async () => {
+    render(<AlbumBrowser createRepository={() => fakeRepository(createEmptyCollection())} />);
+
+    expect(
+      (await screen.findByRole("link", { name: "Volver al inicio" })).getAttribute(
+        "href",
+      ),
+    ).toBe("/");
+  });
+});
+
+function fakeRepository(
+  collection: CollectionState,
+  save: CollectionRepository["save"] = async () => undefined,
+): CollectionRepository {
+  return {
+    load: async () => collection,
+    save,
+    clear: async () => undefined,
+  };
+}
+
+function selectSection(section: string): void {
+  fireEvent.change(screen.getByLabelText("Sección del álbum"), {
+    target: { value: section },
+  });
+}
+
+function positionCards(): HTMLElement[] {
+  return within(screen.getByRole("heading", { name: "Posiciones" }).parentElement ?? document.body)
+    .getAllByRole("article");
+}
+
+async function addPaniniCopy(): Promise<void> {
+  fireEvent.click(screen.getByRole("button", { name: "Agregar copia de PANINI 00" }));
+  await waitFor(() => {
+    expect(
+      (screen.getByRole("button", {
+        name: "Agregar copia de PANINI 00",
+      }) as HTMLButtonElement).disabled,
+    ).toBe(false);
+  });
+  expect(screen.getByText("Cambios guardados.")).toBeTruthy();
+}

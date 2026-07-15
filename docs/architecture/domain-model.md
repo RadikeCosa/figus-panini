@@ -2,15 +2,18 @@
 
 ## 1. Propósito
 
-Este documento describe el dominio ya implementado para los Incrementos 1 y 2
-del MVP: la definición canónica del álbum y las reglas puras de colección.
+Este documento describe el dominio ya implementado para los Incrementos 1, 2 y
+4B del MVP: la definición canónica del álbum, las reglas puras de colección y
+la consulta rápida de posiciones.
 
 El dominio resuelve tres problemas centrales:
 
 - definir cuáles son las 980 posiciones válidas del álbum estándar;
 - representar cuántas copias tiene Pedro de cada posición;
 - derivar progreso, faltantes y repetidas sin depender de UI, navegador ni
-  persistencia.
+  persistencia;
+- interpretar una consulta textual de posición sin acoplarla a React ni a
+  IndexedDB.
 
 La implementación actual vive en `domain/album/canonical-album.ts` y
 `domain/collection/collection.ts`, con validación en sus tests unitarios.
@@ -22,14 +25,15 @@ El dominio separa cuatro responsabilidades:
 ```text
 Álbum canónico -> universo válido de posiciones
 Colección      -> cantidades registradas por posición válida
-Persistencia   -> pendiente; deberá guardar y recuperar colección
-Interfaz       -> pendiente; deberá mostrar y modificar colección
+Consulta       -> parsing y lectura de estado de una posición
+Persistencia   -> guarda y recupera colección local
+Interfaz       -> presenta estados y dispara operaciones
 ```
 
 La definición canónica del álbum es estática y determina qué posiciones existen.
 La colección es el estado mutable del usuario, expresado como datos puros. La
-persistencia con IndexedDB todavía no existe. La interfaz futura todavía no
-existe y deberá consumir estas reglas en vez de duplicarlas.
+persistencia con IndexedDB guarda y recupera esa colección. La interfaz consume
+estas reglas en vez de duplicarlas.
 
 ## 3. Álbum Canónico
 
@@ -139,13 +143,67 @@ Los totales distinguen:
 Las listas de faltantes y repetidas se derivan recorriendo el álbum canónico en
 orden global.
 
-## 7. Operaciones Disponibles
+## 7. Consulta Rápida De Posiciones
+
+La consulta rápida interpreta entradas de texto como:
+
+- `Argentina 7`;
+- `México 12`;
+- `PANINI 00`;
+- `FWC 4`;
+- `Corea del Sur 18`.
+
+El dominio normaliza el nombre de sección antes de comparar:
+
+- elimina espacios iniciales y finales;
+- colapsa varios espacios internos;
+- ignora diferencias de mayúsculas;
+- tolera entrada sin diacríticos cuando la coincidencia es inequívoca.
+
+La resolución siempre devuelve el nombre canónico vigente de la sección. No se
+agregan alias, abreviaturas, códigos FIFA ni nombres en inglés.
+
+El parsing separa el último token como posición y el resto como sección. Los
+errores normales de entrada se modelan como resultados discriminados, no como
+excepciones:
+
+- consulta vacía;
+- número ausente;
+- sección inexistente o ambigua;
+- posición no numérica;
+- posición fuera del rango canónico de la sección.
+
+La validación de existencia se deriva del álbum canónico:
+
+- `PANINI` admite únicamente `00`;
+- `FWC` admite `1` a `19`;
+- cada selección admite `1` a `20`.
+
+Cuando la posición existe, el dominio devuelve su identidad canónica y el estado
+en una `CollectionState`: cantidad total de copias, copias repetidas y estado
+`missing`, `owned` o `duplicate`. Esta operación es de solo lectura y no guarda
+ni modifica la colección.
+
+La misma lógica puede reutilizarse más adelante en entrada rápida, pero esa
+pantalla todavía no registra cambios.
+
+## 8. Operaciones Disponibles
 
 Las funciones públicas relevantes son:
 
 - `expandCanonicalAlbumPositions`: expande la definición declarativa del álbum.
+- `listCanonicalSections`: lista secciones canónicas para sugerencias o
+  navegación.
 - `makePositionKey`: genera una clave técnica reversible para una posición.
 - `parsePositionKey`: recupera sección y posición desde una clave técnica.
+- `normalizeSectionText`: normaliza texto de sección para búsqueda.
+- `resolveCanonicalSection`: resuelve una sección canónica desde texto de
+  entrada.
+- `parsePositionQuery`: interpreta una consulta textual y devuelve un resultado
+  discriminado.
+- `validatePositionExists`: valida una posición contra la definición canónica.
+- `getPositionCollectionStatus`: obtiene el estado de una posición dentro de una
+  colección.
 - `createEmptyCollection`: crea una colección vacía.
 - `getCopies`: lee la cantidad de una posición válida.
 - `setCopies`: fija una cantidad válida y elimina la entrada si es cero.
@@ -164,7 +222,7 @@ Las funciones públicas relevantes son:
 - `normalizeCollection`: valida datos externos y devuelve colección normalizada
   con issues.
 
-## 8. Validación Y Normalización
+## 9. Validación Y Normalización
 
 Las operaciones internas validan contra el álbum canónico. Una posición
 desconocida no puede modificarse ni leerse como si fuera válida.
@@ -192,7 +250,7 @@ se reportan como issues.
 En arrays, si aparece una posición duplicada, se conserva la primera entrada
 válida procesada y la repetición se reporta como `duplicate-position`.
 
-## 9. Errores
+## 10. Errores
 
 `CollectionDomainError` se lanza cuando una operación interna recibe datos que no
 puede aceptar como estado válido:
@@ -205,7 +263,11 @@ puede aceptar como estado válido:
 En cambio, `normalizeCollection` no lanza por datos externos inválidos. Devuelve
 un reporte de `issues` y excluye esas entradas de la colección normalizada.
 
-## 10. Invariantes
+De la misma forma, `parsePositionQuery` y la resolución de secciones no lanzan
+por errores normales de entrada del usuario. Devuelven estados explícitos para
+que la UI muestre mensajes breves sin exponer detalles técnicos.
+
+## 11. Invariantes
 
 Los tests actuales comprueban estas invariantes:
 
@@ -227,8 +289,14 @@ Los tests actuales comprueban estas invariantes:
 - progreso, faltantes y repetidas se calculan contra el álbum canónico;
 - las listas derivadas respetan el orden canónico;
 - la normalización omite ceros, excluye inválidos y reporta issues.
+- la consulta textual devuelve identidades canónicas;
+- las secciones se comparan con normalización de espacios, mayúsculas y
+  diacríticos;
+- `PANINI`, `FWC` y selecciones validan sus rangos desde la definición canónica;
+- el estado de consulta distingue faltante, pegada y repetida sin modificar la
+  colección.
 
-## 11. Trade-Offs
+## 12. Trade-Offs
 
 Dataset generado frente a 980 objetos manuales: la generación declarativa reduce
 duplicación y hace visibles las reglas estructurales del álbum. El costo es que
@@ -238,6 +306,11 @@ Mapa disperso frente a colección completa: el mapa guarda solo posiciones con
 cantidad positiva y hace que la colección vacía sea mínima. El costo es que las
 faltantes deben derivarse recorriendo el álbum canónico, no leyendo entradas
 guardadas con cero.
+
+Resolución exacta normalizada frente a búsqueda difusa: alcanza para el MVP y
+evita dependencias o alias no confirmados. El costo es que el usuario debe
+escribir el nombre canónico de la sección, aunque puede hacerlo sin respetar
+mayúsculas, acentos ni espacios exactos.
 
 Funciones puras frente a clases: las funciones puras facilitan tests, evitan
 estado oculto y no dependen de navegador ni persistencia. El costo es que las

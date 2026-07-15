@@ -71,13 +71,18 @@ Este documento guía la secuencia de trabajo. No registra trabajo ya realizado n
 
 ### 4. Shell y navegación mobile-first
 
-- Estado: en curso.
+- Estado: completado.
 - Objetivo: crear la estructura visible mínima para navegar el MVP desde celular.
-- Alcance: navegación principal, layout responsive y acceso simple a las superficies del producto.
+- Alcance: navegación principal, layout responsive, carga inicial, resumen real y
+  consulta rápida de figuritas de solo lectura con sugerencias progresivas de
+  sección.
 - Dependencias: dominio y persistencia base.
 - Resultado verificable: la app se puede recorrer con una jerarquía clara y mobile-first.
-- Criterios de aceptación: navegación simple, foco visible y sin dependencia de datos inventados.
-- Validaciones esperadas: revisión visual y pruebas básicas de interacción.
+- Criterios de aceptación: navegación simple, foco visible, resumen derivado del
+  dominio, consulta rápida contra la colección cargada, sugerencias canónicas
+  accesibles y sin dependencia de datos inventados.
+- Validaciones esperadas: tests de dominio y UI, lint, build y revisión breve en
+  navegador.
 - Documentación que debería actualizarse: `docs/product/mvp-scope.md`.
 
 #### 4A. Shell y carga inicial
@@ -90,22 +95,63 @@ Este documento guía la secuencia de trabajo. No registra trabajo ya realizado n
   ofrece accesos a Álbum, Carga rápida, Faltantes y Repetidas.
 - Validaciones esperadas: tests de UI con repositorio inyectado, lint y build.
 
-#### 4B. Resumen y navegación funcional
+#### 4B. Resumen funcional y consulta rápida
 
-- Estado: pendiente.
-- Alcance: completar navegación funcional y conectar superficies reales cuando
-  existan los flujos de álbum, carga rápida, faltantes y repetidas.
+- Estado: completado.
+- Alcance: mantener el resumen global, agregar consulta rápida de solo lectura
+  por sección y número, resolver secciones canónicas con normalización y mostrar
+  estado faltante, pegada o repetida desde la colección cargada.
+- Resultado verificable: `/` permite consultar entradas como `Argentina 7`,
+  `México 12`, `PANINI 00`, `FWC 4` o `Corea del Sur 18` sin recargar ni guardar
+  colección.
+- Validaciones esperadas: tests de dominio y UI con repositorio inyectado, lint,
+  build y validación manual en navegador.
+
+#### 4C. Sugerencias progresivas de sección
+
+- Estado: completado.
+- Alcance: agregar sugerencias canónicas al campo de consulta rápida mientras se
+  escribe la sección, con coincidencia normalizada, límite de resultados,
+  selección por click o teclado y conservación del número ya escrito.
+- Resultado verificable: el campo sugiere `PANINI`, `FWC` y selecciones desde el
+  dataset canónico sin recargar ni guardar colección.
+- Validaciones esperadas: tests de dominio y UI con repositorio inyectado, lint,
+  build y validación breve en navegador mobile.
 
 ### 5. Flujo principal del álbum
 
-- Estado: pendiente.
+- Estado: completado.
 - Objetivo: permitir revisar el álbum y corregir cantidades sin perder contexto.
-- Alcance: vista de álbum, lectura de estado y edición de cantidad.
+- Alcance: vista de álbum, lectura de estado y edición de cantidad persistida.
 - Dependencias: shell, dominio y persistencia.
-- Resultado verificable: Pedro puede ajustar una figurita y ver el cambio reflejado.
-- Criterios de aceptación: los cambios se guardan y el estado visible coincide con la persistencia.
+- Resultado verificable: Pedro puede recorrer secciones del álbum, ajustar una
+  figurita y ver el cambio persistido.
+- Criterios de aceptación: la vista deriva estados desde la colección cargada,
+  guarda cambios mediante `CollectionRepository`, actualiza métricas y revierte
+  la UI si un guardado falla.
 - Validaciones esperadas: pruebas de flujo y regresión de edición.
 - Documentación que debería actualizarse: `docs/product/mvp-scope.md`.
+
+#### 5A. Álbum navegable de solo lectura
+
+- Estado: completado.
+- Alcance: `/album` carga la colección local, permite seleccionar `PANINI`,
+  `FWC` o una selección por grupo, muestra métricas por sección y renderiza la
+  grilla de posiciones con estados faltante, pegada o repetida.
+- Resultado verificable: la pantalla recorre el álbum canónico sin editar ni
+  guardar cantidades.
+- Validaciones esperadas: tests de UI con repositorio inyectado, lint, build y
+  validación en navegador.
+
+#### 5B. Edición y persistencia desde álbum
+
+- Estado: completado.
+- Alcance: permitir modificar cantidades desde la vista de álbum, persistir el
+  cambio y reflejarlo sin perder contexto.
+- Resultado verificable: cada posición permite agregar o quitar copias, muestra
+  estado de guardado y revierte al estado anterior ante error de persistencia.
+- Validaciones esperadas: tests de UI con repositorio inyectado, lint, build y
+  validación en navegador con IndexedDB real.
 
 ### 6. Entrada rápida
 

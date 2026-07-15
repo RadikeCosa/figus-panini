@@ -53,6 +53,41 @@ export type NormalizeCollectionResult = {
   issues: NormalizationIssue[];
 };
 
+export type ResolveSectionResult =
+  | { status: "found"; section: string }
+  | { status: "not-found"; sectionInput: string }
+  | { status: "ambiguous"; sectionInput: string; matches: string[] };
+
+export type PositionQueryResult =
+  | { status: "empty-query" }
+  | { status: "missing-position-number"; sectionInput: string }
+  | { status: "section-not-found"; sectionInput: string }
+  | { status: "section-ambiguous"; sectionInput: string; matches: string[] }
+  | { status: "non-numeric-position"; sectionInput: string; positionInput: string }
+  | {
+      status: "position-out-of-range";
+      section: string;
+      positionInput: string;
+      allowedPositions: string[];
+    }
+  | {
+      status: "found";
+      position: PositionRef;
+      copies: number;
+      duplicateCopies: number;
+      ownership: "missing" | "owned" | "duplicate";
+    };
+
+export type SectionSuggestionQuery = {
+  sectionInput: string;
+  positionInput: string | null;
+};
+
+export type SectionSuggestion = {
+  section: string;
+  value: string;
+};
+
 export class CollectionDomainError extends Error {
   constructor(message: string) {
     super(message);
@@ -71,6 +106,8 @@ const POSITIONS_BY_SECTION = CANONICAL_POSITIONS.reduce<
   groups[position.section] = [...(groups[position.section] ?? []), position];
   return groups;
 }, {});
+
+const CANONICAL_SECTIONS = Object.keys(POSITIONS_BY_SECTION);
 
 export function makePositionKey({ section, position }: PositionRef): PositionKey {
   return `${encodeURIComponent(section)}|${encodeURIComponent(position)}`;
@@ -95,6 +132,198 @@ export function parsePositionKey(key: PositionKey): PositionRef {
 
 export function createEmptyCollection(): CollectionState {
   return { copiesByPosition: {} };
+}
+
+export function listCanonicalSections(): string[] {
+  return [...CANONICAL_SECTIONS];
+}
+
+export function normalizeSectionText(input: string): string {
+  return input
+    .trim()
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .replace(/\s+/g, " ")
+    .toLocaleLowerCase("es");
+}
+
+export function resolveCanonicalSection(input: string): ResolveSectionResult {
+  const normalizedInput = normalizeSectionText(input);
+
+  if (normalizedInput === "") {
+    return { status: "not-found", sectionInput: input };
+  }
+
+  const matches = CANONICAL_SECTIONS.filter(
+    (section) => normalizeSectionText(section) === normalizedInput,
+  );
+
+  if (matches.length === 0) {
+    return { status: "not-found", sectionInput: input };
+  }
+
+  if (matches.length > 1) {
+    return { status: "ambiguous", sectionInput: input, matches };
+  }
+
+  return { status: "found", section: matches[0] };
+}
+
+export function parseSectionSuggestionQuery(query: string): SectionSuggestionQuery {
+  const normalizedQuery = query.trim().replace(/\s+/g, " ");
+
+  if (normalizedQuery === "") {
+    return { sectionInput: "", positionInput: null };
+  }
+
+  const queryParts = normalizedQuery.match(/^(.*\S)\s+(\d+)$/);
+
+  if (!queryParts) {
+    return { sectionInput: normalizedQuery, positionInput: null };
+  }
+
+  return {
+    sectionInput: queryParts[1],
+    positionInput: queryParts[2],
+  };
+}
+
+export function getCanonicalSectionSuggestions(
+  query: string,
+  limit = 6,
+): SectionSuggestion[] {
+  const partialQuery = parseSectionSuggestionQuery(query);
+  const normalizedSectionInput = normalizeSectionText(partialQuery.sectionInput);
+
+  if (normalizedSectionInput === "") {
+    return [];
+  }
+
+  if (isCompleteValidPositionQuery(partialQuery)) {
+    return [];
+  }
+
+  const prefixMatches = CANONICAL_SECTIONS.filter((section) =>
+    normalizeSectionText(section).startsWith(normalizedSectionInput),
+  );
+  const prefixSet = new Set(prefixMatches);
+  const contentMatches = CANONICAL_SECTIONS.filter(
+    (section) =>
+      !prefixSet.has(section) &&
+      normalizeSectionText(section).includes(normalizedSectionInput),
+  );
+
+  return [...prefixMatches, ...contentMatches].slice(0, limit).map((section) => ({
+    section,
+    value: buildSectionSuggestionValue(partialQuery, section),
+  }));
+}
+
+export function parsePositionQuery(
+  query: string,
+  collection: CollectionState,
+): PositionQueryResult {
+  const normalizedQuery = query.trim().replace(/\s+/g, " ");
+
+  if (normalizedQuery === "") {
+    return { status: "empty-query" };
+  }
+
+  const fullSection = resolveCanonicalSection(normalizedQuery);
+
+  if (fullSection.status === "found") {
+    return { status: "missing-position-number", sectionInput: normalizedQuery };
+  }
+
+  const queryParts = normalizedQuery.match(/^(.*\S)\s+(\S+)$/);
+
+  if (!queryParts) {
+    return { status: "missing-position-number", sectionInput: normalizedQuery };
+  }
+
+  const [, sectionInput, positionInput] = queryParts;
+  const resolvedSection = resolveCanonicalSection(sectionInput);
+
+  if (resolvedSection.status === "not-found") {
+    return { status: "section-not-found", sectionInput };
+  }
+
+  if (resolvedSection.status === "ambiguous") {
+    return {
+      status: "section-ambiguous",
+      sectionInput: resolvedSection.sectionInput,
+      matches: resolvedSection.matches,
+    };
+  }
+
+  if (!/^\d+$/.test(positionInput)) {
+    return { status: "non-numeric-position", sectionInput, positionInput };
+  }
+
+  const positionValidation = validateCanonicalPosition(
+    resolvedSection.section,
+    positionInput,
+  );
+
+  if (!positionValidation.valid) {
+    return {
+      status: "position-out-of-range",
+      section: resolvedSection.section,
+      positionInput,
+      allowedPositions: positionValidation.allowedPositions,
+    };
+  }
+
+  return getPositionCollectionStatus(collection, {
+    section: resolvedSection.section,
+    position: positionValidation.position,
+  });
+}
+
+export function buildSectionSuggestionValue(
+  query: SectionSuggestionQuery,
+  section: string,
+): string {
+  return query.positionInput === null
+    ? `${section} `
+    : `${section} ${query.positionInput}`;
+}
+
+export function validatePositionExists(
+  section: string,
+  positionInput: string,
+): { valid: true; position: PositionRef } | { valid: false; allowedPositions: string[] } {
+  const validation = validateCanonicalPosition(section, positionInput);
+
+  if (!validation.valid) {
+    return validation;
+  }
+
+  return {
+    valid: true,
+    position: {
+      section,
+      position: validation.position,
+    },
+  };
+}
+
+export function getPositionCollectionStatus(
+  collection: CollectionState,
+  position: PositionRef,
+): Extract<PositionQueryResult, { status: "found" }> {
+  const copies = getCopies(collection, position);
+  const duplicateCopies = Math.max(copies - 1, 0);
+  const ownership =
+    copies === 0 ? "missing" : duplicateCopies > 0 ? "duplicate" : "owned";
+
+  return {
+    status: "found",
+    position,
+    copies,
+    duplicateCopies,
+    ownership,
+  };
 }
 
 export function getCopies(
@@ -254,6 +483,44 @@ function assertKnownPosition(position: PositionRef): void {
 
 function isKnownPosition(position: PositionRef): boolean {
   return CANONICAL_KEYS.has(makePositionKey(position));
+}
+
+function validateCanonicalPosition(
+  section: string,
+  positionInput: string,
+): { valid: true; position: string } | { valid: false; allowedPositions: string[] } {
+  const positions = POSITIONS_BY_SECTION[section];
+
+  if (!positions) {
+    return { valid: false, allowedPositions: [] };
+  }
+
+  const allowedPositions = positions.map(({ position }) => position);
+  const canonicalPosition =
+    section === "PANINI" ? positionInput : String(Number(positionInput));
+
+  if (!allowedPositions.includes(canonicalPosition)) {
+    return { valid: false, allowedPositions };
+  }
+
+  return { valid: true, position: canonicalPosition };
+}
+
+function isCompleteValidPositionQuery(query: SectionSuggestionQuery): boolean {
+  if (query.positionInput === null) {
+    return false;
+  }
+
+  const resolvedSection = resolveCanonicalSection(query.sectionInput);
+
+  if (resolvedSection.status !== "found") {
+    return false;
+  }
+
+  return validateCanonicalPosition(
+    resolvedSection.section,
+    query.positionInput,
+  ).valid;
 }
 
 function assertValidQuantity(copies: number): void {

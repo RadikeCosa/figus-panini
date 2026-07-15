@@ -33,14 +33,16 @@ El sistema vigente separa estas responsabilidades:
   limpiar una colección sin exponer IndexedDB.
 - Adaptador IndexedDB: `indexeddb-collection-repository.ts` implementa ese
   contrato usando la API nativa del navegador.
-- UI futura: deberá consumir el repositorio y las funciones de dominio; no debe
-  acceder directamente a IndexedDB.
+- UI: consume el repositorio y las funciones de dominio; no debe acceder
+  directamente a IndexedDB.
 - Backup futuro: podrá reutilizar conceptos, pero tendrá su propio contrato de
   exportación e importación.
 
-La frontera importante es que la UI futura no debe abrir bases IndexedDB ni
-leer object stores. Debe pedir una colección al repositorio, aplicar cambios con
-funciones puras del dominio y guardar el nuevo estado mediante el repositorio.
+La frontera importante es que la UI no debe abrir bases IndexedDB ni leer object
+stores. Debe pedir una colección al repositorio, aplicar cambios con funciones
+puras del dominio y guardar el nuevo estado mediante el repositorio. Las
+consultas de solo lectura usan la colección cargada en memoria y no vuelven a
+consultar IndexedDB.
 
 ## Contrato del repositorio
 
