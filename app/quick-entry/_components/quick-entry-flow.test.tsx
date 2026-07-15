@@ -70,8 +70,7 @@ describe("QuickEntryFlow", () => {
     submitQuery("Argentina 7");
 
     expect(await screen.findByRole("heading", { name: "Argentina 7" })).toBeTruthy();
-    expect(screen.getByText("Faltante")).toBeTruthy();
-    expect(screen.getByText("0 copias")).toBeTruthy();
+    expect(screen.getByText(/Faltante · 0 copias/)).toBeTruthy();
   });
 
   it("shows invalid query errors", async () => {
@@ -108,6 +107,21 @@ describe("QuickEntryFlow", () => {
     fireEvent.keyDown(input, { key: "Enter", code: "Enter" });
 
     expect(inputValue()).toBe("PANINI ");
+  });
+
+  it("keeps suggestions scrollable without reducing the available options", async () => {
+    render(<QuickEntryFlow createRepository={() => fakeRepository(createEmptyCollection())} />);
+
+    await screen.findByRole("heading", { name: "Buscar posición" });
+    fireEvent.change(screen.getByLabelText("Sección y número"), {
+      target: { value: "a" },
+    });
+
+    const listbox = await screen.findByRole("listbox");
+
+    expect(listbox.className).toContain("max-h-40");
+    expect(listbox.className).toContain("overflow-y-auto");
+    expect(screen.getAllByRole("option").length).toBeGreaterThanOrEqual(3);
   });
 
   it("adds the first copy and persists the expected collection", async () => {
@@ -227,7 +241,7 @@ describe("QuickEntryFlow", () => {
       "No fue posible guardar. Se restauró el estado anterior.",
     );
     submitQuery("México 1");
-    expect(await screen.findByText("1 copia")).toBeTruthy();
+    expect(await screen.findByText(/Pegada · 1 copia/)).toBeTruthy();
   });
 
   it("does not load again for each addition", async () => {
@@ -287,7 +301,7 @@ describe("QuickEntryFlow", () => {
 
     await screen.findByRole("heading", { name: "Buscar posición" });
     submitQuery("México 12");
-    expect(await screen.findByText("1 copia")).toBeTruthy();
+    expect(await screen.findByText(/Pegada · 1 copia/)).toBeTruthy();
   });
 });
 

@@ -238,6 +238,10 @@ Interacción:
 La misma lógica de parsing y resolución se reutiliza en entrada rápida, donde sí
 hay escritura y persistencia.
 
+En `/quick-entry`, el layout mobile prioriza continuidad con teclado virtual:
+cabecera compacta, input dominante, sugerencias con scroll interno, estado de
+figurita resumido y confirmación con `Deshacer` cerca del mensaje.
+
 ## Entrada rápida
 
 La ruta `/quick-entry` reutiliza `parsePositionQuery` y

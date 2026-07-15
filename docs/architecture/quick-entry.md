@@ -64,6 +64,25 @@ Después de una suma exitosa o de un deshacer exitoso, el foco vuelve al campo d
 entrada. Esto permite cargar varias figuritas seguidas desde teclado móvil o
 físico sin tocar otra zona de la pantalla.
 
+## Layout mobile y teclado
+
+La ruta está optimizada para teléfonos angostos y uso con teclado virtual
+abierto. La cabecera conserva contexto, pero evita ocupar gran parte del primer
+viewport. El formulario mantiene el input como control dominante, con altura
+táctil cómoda y el botón `Consultar` cerca del campo.
+
+Las sugerencias siguen usando la misma lógica de dominio, pero la lista visible
+tiene altura máxima y scroll interno para no empujar permanentemente el resto del
+flujo. El estado de la figurita se muestra en formato compacto:
+
+```text
+Argentina 7
+Faltante · 0 copias
+```
+
+`Agregar copia`, confirmación y `Deshacer` quedan cerca del resultado para
+reducir el desplazamiento durante cargas repetidas.
+
 ## Fuera de alcance
 
 Este flujo no implementa:

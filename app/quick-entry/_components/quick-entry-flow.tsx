@@ -271,22 +271,23 @@ export function QuickEntryFlow({
   }
 
   return (
-    <main className="min-h-dvh bg-zinc-50 px-4 py-5 text-zinc-950">
-      <div className="mx-auto flex w-full max-w-md flex-col gap-5">
-        <header className="rounded-lg bg-emerald-900 px-5 py-6 text-white shadow-sm">
+    <main className="min-h-dvh bg-zinc-50 px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] text-zinc-950">
+      <div className="mx-auto flex w-full max-w-md flex-col gap-3">
+        <header className="rounded-lg bg-emerald-900 px-4 py-3 text-white shadow-sm">
           <Link
-            className="inline-flex min-h-10 items-center rounded-md px-1 text-sm font-semibold text-emerald-50 underline-offset-4 outline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-white"
+            className="inline-flex min-h-9 items-center rounded-md px-1 text-sm font-semibold text-emerald-50 underline-offset-4 outline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-white"
             href="/"
           >
             Volver al inicio
           </Link>
-          <p className="mt-4 text-sm font-medium text-emerald-100">Carga rápida</p>
-          <h1 className="mt-2 text-3xl font-bold tracking-tight">
-            Agregar figuritas
-          </h1>
-          <p className="mt-3 text-sm leading-6 text-emerald-50">
-            Registrá una figurita y seguí con la próxima.
-          </p>
+          <div className="mt-2">
+            <p className="text-xs font-semibold uppercase text-emerald-100">
+              Carga rápida
+            </p>
+            <h1 className="mt-1 text-2xl font-bold tracking-tight">
+              Agregar figuritas
+            </h1>
+          </div>
         </header>
 
         {loadState.status === "loading" ? <QuickEntryLoading /> : null}
@@ -294,15 +295,15 @@ export function QuickEntryFlow({
           <QuickEntryLoadError onRetry={() => void loadCollection()} />
         ) : null}
         {loadState.status === "ready" ? (
-          <section aria-labelledby="quick-entry-title" className="space-y-4">
+          <section aria-labelledby="quick-entry-title" className="space-y-3">
             <form
-              className="rounded-lg border border-zinc-200 bg-white p-5 shadow-sm"
+              className="rounded-lg border border-zinc-200 bg-white p-4 shadow-sm"
               onSubmit={handleSubmit}
             >
-              <h2 id="quick-entry-title" className="text-xl font-bold text-zinc-950">
+              <h2 id="quick-entry-title" className="text-base font-bold text-zinc-950">
                 Buscar posición
               </h2>
-              <div className="relative mt-4 space-y-2">
+              <div className="relative mt-3 space-y-1.5">
                 <label
                   className="block text-sm font-semibold text-zinc-800"
                   htmlFor={inputId}
@@ -348,14 +349,14 @@ export function QuickEntryFlow({
                 />
                 {showSuggestions ? (
                   <ul
-                    className="absolute z-10 mt-1 max-h-72 w-full overflow-y-auto rounded-md border border-zinc-200 bg-white p-1 shadow-lg"
+                    className="absolute z-10 mt-1 max-h-40 w-full overflow-y-auto rounded-md border border-zinc-200 bg-white p-1 shadow-lg"
                     id={suggestionsId}
                     role="listbox"
                   >
                     {suggestions.map((suggestion, index) => (
                       <li
                         aria-selected={boundedActiveSuggestionIndex === index}
-                        className="min-h-11 cursor-pointer rounded px-3 py-2 text-sm font-medium text-zinc-800 outline-none transition hover:bg-emerald-50 hover:text-emerald-950 aria-selected:bg-emerald-100 aria-selected:text-emerald-950"
+                        className="min-h-10 cursor-pointer rounded px-3 py-2 text-sm font-medium text-zinc-800 outline-none transition hover:bg-emerald-50 hover:text-emerald-950 aria-selected:bg-emerald-100 aria-selected:text-emerald-950"
                         id={`${suggestionsId}-option-${index}`}
                         key={suggestion.section}
                         role="option"
@@ -375,7 +376,7 @@ export function QuickEntryFlow({
               </div>
 
               <button
-                className="mt-4 min-h-12 w-full rounded-md bg-zinc-950 px-4 py-2 text-base font-semibold text-white outline-offset-2 transition hover:bg-zinc-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-zinc-950 disabled:cursor-not-allowed disabled:bg-zinc-400"
+                className="mt-3 min-h-11 w-full rounded-md bg-zinc-950 px-4 py-2 text-base font-semibold text-white outline-offset-2 transition hover:bg-zinc-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-zinc-950 disabled:cursor-not-allowed disabled:bg-zinc-400"
                 disabled={isSaving}
                 type="submit"
               >
@@ -396,14 +397,14 @@ export function QuickEntryFlow({
             {confirmation ? (
               <section
                 aria-live="polite"
-                className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-emerald-950 shadow-sm"
+                className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-emerald-950 shadow-sm"
               >
                 <p className="text-sm font-semibold whitespace-pre-line">
                   {confirmation}
                 </p>
                 {lastAddition ? (
                   <button
-                    className="mt-3 min-h-11 rounded-md border border-emerald-700 bg-white px-4 py-2 text-sm font-semibold text-emerald-900 outline-offset-2 transition hover:bg-emerald-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+                    className="mt-2 min-h-10 rounded-md border border-emerald-700 bg-white px-3 py-2 text-sm font-semibold text-emerald-900 outline-offset-2 transition hover:bg-emerald-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
                     disabled={isSaving}
                     type="button"
                     onClick={() => void handleUndo()}
@@ -424,10 +425,10 @@ function QuickEntryLoading() {
   return (
     <section
       aria-live="polite"
-      className="rounded-lg border border-zinc-200 bg-white p-5 shadow-sm"
+      className="rounded-lg border border-zinc-200 bg-white p-4 shadow-sm"
     >
       <p className="text-sm font-medium text-zinc-500">Cargando colección</p>
-      <p className="mt-2 text-lg font-semibold text-zinc-950">
+      <p className="mt-1 text-base font-semibold text-zinc-950">
         Preparando la carga rápida...
       </p>
     </section>
@@ -438,7 +439,7 @@ function QuickEntryLoadError({ onRetry }: { onRetry: () => void }) {
   return (
     <section
       aria-live="assertive"
-      className="rounded-lg border border-red-200 bg-red-50 p-5 shadow-sm"
+      className="rounded-lg border border-red-200 bg-red-50 p-4 shadow-sm"
     >
       <h2 className="text-lg font-semibold text-red-950">
         No fue posible cargar la colección
@@ -472,7 +473,7 @@ function SaveStatus({ state }: { state: SaveState }) {
   return (
     <p
       aria-live={state === "error" ? "assertive" : "polite"}
-      className={`rounded-lg border px-4 py-3 text-sm font-semibold shadow-sm ${
+      className={`rounded-lg border px-3 py-2 text-sm font-semibold shadow-sm ${
         state === "error"
           ? "border-red-200 bg-red-50 text-red-800"
           : "border-emerald-200 bg-emerald-50 text-emerald-800"
@@ -508,12 +509,17 @@ function PositionPreview({
         : `${result.copies} copias · ${result.duplicateCopies} repetidas`;
 
   return (
-    <section className="rounded-lg border border-zinc-200 bg-white p-5 shadow-sm">
-      <p className="text-sm font-medium text-emerald-700">{state}</p>
-      <h2 className="mt-2 text-2xl font-bold text-zinc-950">{title}</h2>
-      <p className="mt-2 text-sm font-semibold text-zinc-700">{quantity}</p>
+    <section className="rounded-lg border border-zinc-200 bg-white p-4 shadow-sm">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <h2 className="text-xl font-bold text-zinc-950">{title}</h2>
+          <p className="mt-1 text-sm font-semibold text-zinc-700">
+            {state} · {quantity}
+          </p>
+        </div>
+      </div>
       <button
-        className="mt-5 min-h-12 w-full rounded-md bg-emerald-700 px-4 py-2 text-base font-semibold text-white outline-offset-2 transition hover:bg-emerald-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:bg-zinc-400"
+        className="mt-3 min-h-11 w-full rounded-md bg-emerald-700 px-4 py-2 text-base font-semibold text-white outline-offset-2 transition hover:bg-emerald-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:bg-zinc-400"
         disabled={isSaving}
         type="button"
         onClick={onAddCopy}
