@@ -258,17 +258,17 @@ function QuickPositionLookup({ collection }: { collection: CollectionState }) {
   return (
     <section
       aria-labelledby="quick-lookup-title"
-      className="rounded-lg border border-zinc-200 bg-white p-5 shadow-sm"
+      className="rounded-lg border border-zinc-200 bg-white p-4 shadow-sm"
     >
       <div>
         <p className="text-sm font-medium text-zinc-500">Consulta rápida</p>
-        <h2 id="quick-lookup-title" className="mt-2 text-xl font-bold text-zinc-950">
+        <h2 id="quick-lookup-title" className="mt-1 text-lg font-bold text-zinc-950">
           Buscá una figurita
         </h2>
       </div>
 
-      <form className="mt-4 space-y-3" onSubmit={handleSubmit}>
-        <div className="relative space-y-2">
+      <form className="mt-3 space-y-2" onSubmit={handleSubmit}>
+        <div className="relative space-y-1.5">
           <label className="block text-sm font-semibold text-zinc-800" htmlFor={inputId}>
             Sección y número
           </label>
@@ -345,7 +345,11 @@ function QuickPositionLookup({ collection }: { collection: CollectionState }) {
         </button>
       </form>
 
-      <div aria-live="polite" className="mt-4 min-h-20" id={resultId}>
+      <div
+        aria-live="polite"
+        className={result?.status === "found" ? "mt-3" : undefined}
+        id={resultId}
+      >
         {result?.status === "found" ? <LookupResult result={result} /> : null}
       </div>
     </section>

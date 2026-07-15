@@ -441,7 +441,7 @@ function PositionGrid({
       <h3 id="album-grid-title" className="text-base font-semibold text-zinc-950">
         Posiciones
       </h3>
-      <ol className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-8">
+      <ol className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(min(100%,8.625rem),1fr))] gap-3">
         {positions.map((position) => (
           <li className="min-w-0" key={`${position.section}-${position.position}`}>
             <PositionCard
@@ -492,7 +492,7 @@ function PositionCard({
   return (
     <article
       aria-label={`${position.section} ${position.position}: ${stateLabel}, ${quantityLabel}`}
-      className={`flex min-h-32 min-w-0 flex-col justify-between rounded-md border p-3 ${stateStyles}`}
+      className={`flex h-full min-w-0 flex-col gap-3 rounded-md border p-3 ${stateStyles}`}
     >
       <div className="min-w-0">
         <p className="text-3xl font-bold leading-none text-zinc-950">
@@ -502,32 +502,34 @@ function PositionCard({
           {stateLabel}
         </p>
       </div>
-      <div className="mt-3 grid grid-cols-[2.5rem_minmax(0,1fr)_2.5rem] items-center gap-2">
-        <button
-          aria-label={`Quitar copia de ${position.section} ${position.position}`}
-          className="min-h-10 min-w-0 rounded-md border border-zinc-300 bg-white text-lg font-bold text-zinc-950 outline-offset-2 transition hover:border-red-500 hover:text-red-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-red-700 disabled:cursor-not-allowed disabled:border-zinc-200 disabled:bg-zinc-100 disabled:text-zinc-400"
-          disabled={copies === 0 || isSaving}
-          type="button"
-          onClick={() => onRemoveCopy(position)}
-        >
-          −
-        </button>
+      <div className="mt-auto min-w-0 rounded-md border border-zinc-200 bg-white p-2">
         <p
-          className="min-w-0 text-center text-lg font-bold leading-none text-zinc-950"
+          className="min-w-0 text-sm font-semibold text-zinc-800"
           aria-label={`${quantityLabel} registrada${copies === 1 ? "" : "s"}`}
           aria-live="polite"
         >
-          {copies}
+          Cantidad: <span className="text-base text-zinc-950">{copies}</span>
         </p>
-        <button
-          aria-label={`Agregar copia de ${position.section} ${position.position}`}
-          className="min-h-10 min-w-0 rounded-md border border-zinc-300 bg-white text-lg font-bold text-zinc-950 outline-offset-2 transition hover:border-emerald-600 hover:text-emerald-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:border-zinc-200 disabled:bg-zinc-100 disabled:text-zinc-400"
-          disabled={isSaving}
-          type="button"
-          onClick={() => onAddCopy(position)}
-        >
-          +
-        </button>
+        <div className="mt-2 grid grid-cols-2 gap-2">
+          <button
+            aria-label={`Quitar copia de ${position.section} ${position.position}`}
+            className="min-h-11 min-w-0 rounded-md border border-zinc-300 bg-white text-lg font-bold text-zinc-950 outline-offset-2 transition hover:border-red-500 hover:text-red-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-red-700 disabled:cursor-not-allowed disabled:border-zinc-200 disabled:bg-zinc-100 disabled:text-zinc-400"
+            disabled={copies === 0 || isSaving}
+            type="button"
+            onClick={() => onRemoveCopy(position)}
+          >
+            −
+          </button>
+          <button
+            aria-label={`Agregar copia de ${position.section} ${position.position}`}
+            className="min-h-11 min-w-0 rounded-md border border-zinc-300 bg-white text-lg font-bold text-zinc-950 outline-offset-2 transition hover:border-emerald-600 hover:text-emerald-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:border-zinc-200 disabled:bg-zinc-100 disabled:text-zinc-400"
+            disabled={isSaving}
+            type="button"
+            onClick={() => onAddCopy(position)}
+          >
+            +
+          </button>
+        </div>
       </div>
     </article>
   );

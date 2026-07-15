@@ -121,7 +121,7 @@ La navegación usa un `select` nativo con `optgroup`.
 
 En mobile mantiene una sola sección visible y una grilla de dos columnas para
 que cada tarjeta conserve ancho suficiente para `−`, cantidad y `+` sin
-overflow. En pantallas más anchas aumenta progresivamente a tres, cinco y ocho
+overflow. En pantallas más anchas aumenta progresivamente a tres y cinco
 columnas, pero no introduce una experiencia distinta.
 
 ## Trade-offs

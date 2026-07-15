@@ -275,6 +275,7 @@ describe("AlbumBrowser", () => {
 
     expect(within(missingCard).getByText("Faltante")).toBeTruthy();
     expect(within(missingCard).getAllByText("Faltante")).toHaveLength(1);
+    expect(missingCard.textContent).toContain("Cantidad: 0");
     expect(within(missingCard).getByLabelText("0 copias registradas")).toBeTruthy();
     expect(
       (
@@ -288,6 +289,7 @@ describe("AlbumBrowser", () => {
     ).toBeTruthy();
 
     expect(within(ownedCard).getByText("Pegada")).toBeTruthy();
+    expect(ownedCard.textContent).toContain("Cantidad: 1");
     expect(within(ownedCard).getByLabelText("1 copia registrada")).toBeTruthy();
     expect(
       within(ownedCard).getByRole("button", { name: "Quitar copia de México 1" }),
@@ -297,6 +299,7 @@ describe("AlbumBrowser", () => {
     ).toBeTruthy();
 
     expect(within(duplicateCard).getByText("2 repetidas")).toBeTruthy();
+    expect(duplicateCard.textContent).toContain("Cantidad: 3");
     expect(within(duplicateCard).getByLabelText("3 copias registradas")).toBeTruthy();
     expect(
       within(duplicateCard).getByRole("button", {
