@@ -12,7 +12,7 @@ const identityOf = (position: { section: string; position: string }) =>
 const EXPECTED_SELECTIONS = [
   "México",
   "Sudáfrica",
-  "República de Corea",
+  "Corea del Sur",
   "Chequia",
   "Suiza",
   "Canadá",

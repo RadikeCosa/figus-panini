@@ -1,7 +1,7 @@
 export const SELECTION_GROUPS = [
   {
     group: "Grupo A",
-    sections: ["México", "Sudáfrica", "República de Corea", "Chequia"],
+    sections: ["México", "Sudáfrica", "Corea del Sur", "Chequia"],
   },
   {
     group: "Grupo B",
