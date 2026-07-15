@@ -24,45 +24,49 @@ Este documento guía la secuencia de trabajo. No registra trabajo ya realizado n
 
 ### 1. Definición canónica del álbum
 
-- Estado: en curso.
-- Objetivo: establecer la fuente única y validada de las 980 figuritas estándar.
-- Alcance: documentar la estructura oficial del álbum físico estándar sin inventar códigos, nombres ni orden; las figuritas promocionales quedan fuera del MVP.
-- Dependencias: confirmación de una fuente primaria suficientemente confiable,
-  cobertura verificable de los 980 registros estándar, códigos y orden
-  confirmados.
+- Estado: completado.
+- Objetivo: establecer la definición mínima y validada de las 980 posiciones estándar.
+- Alcance: documentar `PANINI-00`, `FWC-1..FWC-19` y 48 selecciones con posiciones `1..20`, sin inventar nombres canónicos de selecciones; las figuritas promocionales quedan fuera del MVP.
+- Dependencias: ninguna pendiente para el MVP.
 - Resultado verificable: existe una definición validada del álbum lista para
   usar como base de dominio, con trazabilidad hacia la fuente confirmada.
 - Criterios de aceptación: no hay datos inferidos ni contradictorios; el total,
-  los códigos, las secciones y el orden están confirmados; las promocionales
-  están excluidas; el procedimiento de obtención y validación es reproducible.
+  `PANINI-00`, `FWC-1..FWC-19`, las 48 selecciones, sus posiciones `1..20`, el
+  orden de presentación y la exclusión de promocionales están confirmados; el
+  procedimiento de obtención y validación es reproducible.
 - Validaciones esperadas: revisión de consistencia contra la fuente confirmada,
-  conteo total, unicidad de códigos, completitud por sección, orden estable y
-  muestra manual auditada; verificación de que las promocionales no integran el
-  dataset canónico.
+  conteo total de 980 posiciones únicas, completitud por sección, orden estable y
+  verificación de que las promocionales no integran el dataset canónico.
 - Documentación que debería actualizarse:
   `docs/data/album-source-research.md` y, si cambia el alcance confirmado del
   producto, `docs/product/product-definition.md` y `docs/product/mvp-scope.md`.
 
 ### 2. Dominio puro
 
-- Estado: pendiente.
+- Estado: completado.
 - Objetivo: modelar álbum y colección con funciones puras y tipos explícitos.
-- Alcance: validación de códigos, cálculos de progreso, faltantes y repetidas.
+- Alcance: validación de posiciones canónicas, cálculos de progreso, faltantes,
+  repetidas, totales y normalización de estado externo.
 - Dependencias: definición canónica del álbum.
 - Resultado verificable: existen reglas de dominio testeables sin depender de UI ni persistencia.
-- Criterios de aceptación: los cálculos derivan del estado real y no guardan flags derivados.
+- Criterios de aceptación: los cálculos derivan del estado real, no guardan flags
+  derivados, no dependen del navegador ni de persistencia, e impiden cantidades
+  inválidas o posiciones desconocidas.
 - Validaciones esperadas: tests unitarios de dominio.
 - Documentación que debería actualizarse: `docs/product/product-definition.md` y `docs/product/mvp-scope.md` si cambia el alcance.
 
 ### 3. Persistencia con IndexedDB
 
-- Estado: pendiente.
+- Estado: completado.
 - Objetivo: guardar y recuperar la colección localmente.
-- Alcance: repositorio local, validación de escrituras y reemplazo atómico para restauración.
+- Alcance: contrato de repositorio local, adaptador IndexedDB, formato
+  persistido versionado y validación de datos al cargar.
 - Dependencias: dominio puro.
 - Resultado verificable: la colección persiste y se recupera de forma confiable.
-- Criterios de aceptación: no hay cantidades negativas, no se asume SSR y la restauración evita estados parciales.
-- Validaciones esperadas: tests de persistencia e importación/exportación.
+- Criterios de aceptación: no hay cantidades negativas, no se asume IndexedDB
+  fuera del navegador, los datos persistidos se tratan como entrada externa y no
+  se reemplazan datos inválidos silenciosamente.
+- Validaciones esperadas: tests de persistencia local e integridad del formato.
 - Documentación que debería actualizarse: `docs/product/mvp-scope.md` y, si aparece una decisión técnica, `docs/decisions/`.
 
 ### 4. Shell y navegación mobile-first

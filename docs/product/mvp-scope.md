@@ -22,6 +22,8 @@
 - Múltiples álbumes.
 - Cualquier metadato del álbum que no esté confirmado por una fuente canónica.
 - Figuritas promocionales, incluidas las de Coca-Cola.
+- Nombres de jugadores, imágenes, rareza, escudos, fotos de equipo o metadatos
+  editoriales adicionales.
 
 ## Flujos principales
 
@@ -31,7 +33,8 @@ Pedro abre la app y ve el estado general de su colección, con una lectura rápi
 
 ### Recorrer el álbum
 
-Pedro navega el álbum para ver códigos válidos, estado por figurita y contexto de cada sección cuando la definición esté disponible.
+Pedro navega el álbum para ver posiciones válidas, estado por figurita y
+contexto de cada sección cuando la definición esté disponible.
 
 ### Registrar una figurita
 
@@ -71,13 +74,12 @@ Pedro importa un respaldo validado y reemplaza la colección actual de forma at�
 - Las cantidades no se vuelven negativas.
 - Faltantes y repetidas se derivan de la cantidad real, no de flags guardados.
 - Las figuritas promocionales no afectan progreso, faltantes, repetidas, búsqueda ni backup.
+- La identidad de una posición usa nombre canónico de sección y número de posición.
 - Exportar e importar no altera datos inválidos ni deja estados parciales.
 - El estado visible coincide con la persistencia local.
 
 ## Preguntas abiertas
 
-- Fuente completa para códigos, secciones y orden de las 980 figuritas estándar: pendiente de confirmación.
-- Orden y nombres completos de las secciones: pendiente de confirmación.
 - Formato exacto del backup técnico: pendiente de definición final si cambia respecto de la base actual.
 
 ## Relación con otros documentos

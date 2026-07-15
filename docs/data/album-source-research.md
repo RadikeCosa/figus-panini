@@ -2,9 +2,9 @@
 
 ## Objetivo
 
-Documentar cómo obtener una definición completa, verificable y reproducible de
-las figuritas del álbum Panini FIFA World Cup 2026, sin inventar códigos,
-secciones, nombres ni orden.
+Documentar cómo obtener una definición mínima, verificable y reproducible de
+las 980 posiciones del álbum Panini FIFA World Cup 2026, sin inventar la lista
+de selecciones, nombres canónicos de sección ni orden.
 
 Este documento cubre solo el Incremento 1 del
 [roadmap](../planning/implementation-roadmap.md). No define todavía dataset,
@@ -14,37 +14,39 @@ y el [alcance del MVP](../product/mvp-scope.md).
 
 ## Estado actual
 
-El incremento está en curso.
+El incremento está completado para el alcance del MVP.
 
 La decisión vigente del proyecto es que la definición canónica del MVP incluye
 únicamente las 980 figuritas que ocupan espacios en el álbum físico estándar.
 Las figuritas promocionales, incluidas las de Coca-Cola, quedan fuera del MVP y
 no participan del progreso, faltantes, repetidas, búsqueda ni backup.
 
-No se encontró, durante esta investigación, una fuente pública oficial de Panini
-con el checklist completo, todos los códigos, el orden y las descripciones de
-las figuritas.
+La lista y el orden de las 48 selecciones fueron confirmados por el responsable
+del proyecto a partir del orden de grupos del álbum. Esa lista es la fuente
+canónica adoptada por el proyecto para el MVP.
 
-La cantidad objetivo ya no es un bloqueo. Todavía falta obtener códigos,
-secciones, orden y cobertura completa de los 980 registros estándar.
+El MVP modela una sección `PANINI` con posición `00`, una sección `FWC` con
+posiciones `1..19`, y 48 secciones de selecciones con posiciones `1..20`.
 
 ## Datos mínimos necesarios
 
 ### Identidad estable obligatoria
 
-- Código canónico visible de cada figurita.
-- Sección canónica a la que pertenece.
-- Orden estable dentro del álbum.
-- Orden estable dentro de la sección.
+- Nombre canónico de sección.
+- Número de posición dentro de la sección.
 - Pertenencia a la colección física exacta que usará Pedro.
+
+No se mantienen por ahora campos separados como `sectionId`, `slug` y
+`displayName`. Una vez que existan colecciones guardadas, el nombre canónico de
+sección debe permanecer estable; cualquier cambio futuro de nombre requiere una
+migración explícita.
 
 ### Datos necesarios para navegación y búsqueda
 
 - Nombre visible de la sección.
-- Tipo de sección cuando esté confirmado: selección, sección FIFA World Cup,
-  patrocinador, especial u otra agrupación real del álbum.
-- Número o posición visible dentro de la sección, si el álbum lo usa.
-- Descripción mínima para distinguir figuritas no numéricas o especiales.
+- Tipo de sección cuando ayude a agrupar: `PANINI`, `FWC` o selección.
+- Posición dentro de la sección.
+- Orden de presentación para recorrer y copiar listas.
 
 ### Datos opcionales
 
@@ -64,6 +66,9 @@ secciones, orden y cobertura completa de los 980 registros estándar.
 - Datos de partidos, fixture o resultados del Mundial.
 - Información biográfica que no ayude a identificar la figurita.
 - Figuritas promocionales, incluidas las de Coca-Cola.
+- Nombres individuales de jugadores.
+- Tipo de figurita, escudo, foto del equipo, imágenes, rareza o metadatos
+  editoriales adicionales.
 
 ## Fuentes candidatas
 
@@ -73,7 +78,7 @@ secciones, orden y cobertura completa de los 980 registros estándar.
 - Ubicación o referencia: el álbum Panini FIFA World Cup 2026 que Pedro usará
   para coleccionar.
 - Datos que aporta: secciones, orden de páginas, espacios visibles, códigos,
-  nombres impresos, figuritas especiales y relación entre espacio y figurita.
+  nombres impresos y relación entre sección y posición.
 - Cobertura aparente: debería cubrir la totalidad de los espacios del álbum
   físico; debe contarse manualmente.
 - Confiabilidad: alta para la edición física concreta de Pedro.
@@ -91,8 +96,8 @@ secciones, orden y cobertura completa de los 980 registros estándar.
 - Tipo de fuente: material físico primario.
 - Ubicación o referencia: checklist incluido en el álbum, folleto oficial,
   contraportada, hoja de control o material de reposición.
-- Datos que aporta: listado de códigos, agrupaciones y, si existe, orden de
-  colección.
+- Datos que aporta: listado de secciones, posiciones, agrupaciones y, si existe,
+  orden de colección.
 - Cobertura aparente: potencialmente completa, pero debe verificarse contra el
   álbum físico.
 - Confiabilidad: alta si el checklist pertenece a la misma edición.
@@ -124,7 +129,8 @@ secciones, orden y cobertura completa de los 980 registros estándar.
 - Tipo de fuente: fuente oficial digital.
 - Ubicación o referencia: aplicación o sitio de colecciones digitales de Panini,
   si existe para la edición 2026.
-- Datos que aporta: secciones, nombres, imágenes, progreso y posiblemente orden.
+- Datos que aporta: secciones, nombres visibles, imágenes, progreso y
+  posiblemente orden.
 - Cobertura aparente: no confirmada para la edición física; fuentes periodísticas
   mencionan una colección digital disponible, pero no aportan checklist completo.
 - Confiabilidad: alta si corresponde a la misma colección física; media si es
@@ -180,8 +186,8 @@ secciones, orden y cobertura completa de los 980 registros estándar.
 - Tipo de fuente: fuente secundaria no oficial.
 - Ubicación o referencia: planillas públicas, publicaciones de intercambio,
   listados de venta o comunidades de coleccionistas.
-- Datos que aporta: códigos, faltantes frecuentes, nombres, fotos parciales y
-  posibles checklists reconstruidos.
+- Datos que aporta: secciones, posiciones, códigos visibles, faltantes
+  frecuentes, nombres, fotos parciales y posibles checklists reconstruidos.
 - Cobertura aparente: variable.
 - Confiabilidad: baja como fuente canónica; útil solo para detectar discrepancias
   o revisar muestras.
@@ -195,21 +201,23 @@ secciones, orden y cobertura completa de los 980 registros estándar.
 
 | Fuente | Cobertura | Confiabilidad | Sirve como canónica | Uso recomendado |
 | --- | --- | --- | --- | --- |
-| Álbum físico oficial de Pedro | Alta si se revisa completo | Alta | Sí, si se audita completo | Fuente base para espacios, orden y secciones |
-| Checklist oficial impreso | Alta si pertenece a la misma edición | Alta | Sí, contrastado con el álbum | Fuente base para códigos y control de completitud |
+| Álbum físico oficial de Pedro | Alta si se revisa completo | Alta | Sí, si se audita completo | Fuente base para secciones, posiciones y orden |
+| Checklist oficial impreso | Alta si pertenece a la misma edición | Alta | Sí, contrastado con el álbum | Fuente base para secciones, posiciones y control de completitud |
 | Página oficial de Panini | Parcial | Alta para datos generales | No sola | Confirmar edición, total y promociones |
-| App o álbum digital oficial | No confirmada | Alta o media según equivalencia | No sola | Apoyo para nombres y orden si coincide con físico |
+| App o álbum digital oficial | No confirmada | Alta o media según equivalencia | No sola | Apoyo para nombres visibles y orden si coincide con físico |
 | Comunicados oficiales | Parcial | Alta para declaraciones | No | Contexto y validación de totales generales |
 | Periodismo reciente | Parcial | Media | No | Contexto sobre total estándar y contenido promocional |
 | Listas de coleccionistas | Variable | Baja | No | Detección auxiliar de errores |
 
 ## Fuente recomendada
 
-La evidencia disponible confirma el alcance cuantitativo del MVP: 980 posiciones
-del álbum físico estándar, sin figuritas promocionales. Todavía no alcanza para
-elegir una fuente canónica definitiva de códigos, secciones y orden.
+La evidencia disponible confirma el alcance cuantitativo y el modelo mínimo del
+MVP: `PANINI-00`, `FWC-1..FWC-19` y 48 secciones de selecciones con posiciones
+`1..20`, sin figuritas promocionales. La lista y el orden de selecciones
+confirmados por el responsable del proyecto son la fuente canónica adoptada para
+este incremento.
 
-La fuente recomendada para construir el dataset es una combinación controlada:
+La fuente recomendada para futuras auditorías es una combinación controlada:
 
 1. álbum físico oficial de Pedro;
 2. checklist oficial impreso o material de control de Panini de la misma edición;
@@ -218,32 +226,21 @@ La fuente recomendada para construir el dataset es una combinación controlada:
 4. fuentes secundarias únicamente para detectar discrepancias, nunca para cerrar
    el dataset.
 
-Motivo: el material físico es el único que puede resolver con precisión qué
-espacios debe gestionar la app para Pedro. Las fuentes públicas encontradas
-coinciden en 980 figuritas estándar, pero no publican el checklist completo.
+Motivo: el dataset mínimo ya cierra el MVP, pero el material físico sigue siendo
+la referencia preferida para resolver discrepancias futuras.
 
 ## Procedimiento de obtención
 
-1. Reunir material primario: álbum físico estándar y checklist oficial de la
-   misma edición, si existe.
-2. Identificar edición y mercado: país, idioma, fecha aproximada de compra,
-   tapa blanda o dura, y cualquier referencia de Panini visible.
-3. Contar espacios del álbum físico por sección, sin registrar todavía el
-   dataset final.
-4. Registrar una tabla de trabajo temporal fuera del código con: sección,
-   posición visible, código impreso, nombre o descripción mínima, página y
-   fuente observada.
-5. Transcribir primero desde el checklist oficial si existe.
-6. Revisar cada fila contra el álbum físico para confirmar que el espacio existe
-   y que el orden coincide.
-7. Tratar secciones especiales solo si ocupan espacios reales del álbum físico
-   estándar.
-8. Marcar todo contenido promocional, incluidas figuritas Coca-Cola, como fuera
+1. Usar la lista de 48 selecciones confirmada por el responsable del proyecto en
+   el orden de grupos del álbum.
+2. Registrar la posición `00` de la sección `PANINI`.
+3. Registrar posiciones `1..19` de la sección `FWC`.
+4. Registrar posiciones `1..20` para cada selección confirmada.
+5. Marcar todo contenido promocional, incluidas figuritas Coca-Cola, como fuera
    del dataset del MVP.
-9. Registrar trazabilidad por registro: fuente primaria, página o sección física,
-   fecha de revisión y estado de verificación.
-10. Resolver discrepancias con una segunda revisión manual antes de crear
-    cualquier archivo de datos.
+6. Validar que la expansión produzca exactamente 980 posiciones únicas.
+7. Resolver cualquier discrepancia futura con una revisión explícita antes de
+   cambiar el nombre canónico de sección o la posición.
 
 No se recomienda extracción automática como primer paso. Puede usarse OCR o
 planillas solo como apoyo, pero el resultado debe revisarse manualmente contra
@@ -255,16 +252,20 @@ Antes de completar el Incremento 1, la definición debe poder validarse con
 estos controles:
 
 - Total exacto de 980 registros estándar.
-- Un identificador canónico por figurita.
-- Ausencia de códigos duplicados.
-- Ausencia de códigos vacíos o normalizados a valores ambiguos.
+- Una posición `PANINI-00`.
+- 19 posiciones `FWC-1..FWC-19`.
+- 48 secciones de selecciones.
+- 20 posiciones por selección.
+- Ausencia de nombres canónicos de sección duplicados.
+- Ausencia de pares duplicados de sección y posición.
+- Ausencia de identificadores vacíos o normalizados a valores ambiguos.
 - Secciones completas según conteo físico.
 - Orden global estable y reproducible.
 - Orden por sección estable y reproducible.
 - Detección de faltantes contra el conteo esperado por sección.
 - Detección de registros sobrantes que no correspondan a un espacio físico.
 - Validación de que cada figurita pertenece a una sección existente.
-- Validación de que los rangos o códigos de cada sección coinciden con la
+- Validación de que los rangos o posiciones de cada sección coinciden con la
   fuente.
 - Validación de que no existen registros promocionales dentro del dataset
   canónico.
@@ -279,9 +280,10 @@ Si se detecta un error futuro después de que Pedro ya tenga colección cargada,
 la corrección debe clasificarse antes de aplicarse:
 
 - Error descriptivo: puede corregirse sin tocar cantidades.
-- Error de sección u orden: puede corregirse si el código canónico no cambia.
-- Error de código: requiere migración explícita y trazable para no perder la
-  colección del usuario.
+- Error de orden: puede corregirse si el nombre canónico de sección y la
+  posición no cambian.
+- Error de nombre canónico de sección o posición: requiere migración explícita y
+  trazable para no perder la colección del usuario.
 - Figurita agregada o eliminada: requiere decisión de producto antes de cambiar
   el total esperado de la colección estándar.
 
@@ -292,8 +294,8 @@ la corrección debe clasificarse antes de aplicarse:
 - Promociones como Coca-Cola pueden mezclarse en material comercial o de prensa;
   no deben incorporarse al dataset canónico del MVP.
 - Fuentes secundarias pueden repetir el mismo dato incorrecto.
-- Transcribir nombres de jugadores aumenta riesgo y puede no ser necesario para
-  el MVP.
+- Transcribir nombres de jugadores no es necesario para el MVP y puede demorar
+  innecesariamente el avance.
 - Copiar imágenes o texto editorial extenso puede introducir restricciones de
   uso innecesarias.
 - Cambiar códigos canónicos después de uso real puede romper la colección local
@@ -301,37 +303,25 @@ la corrección debe clasificarse antes de aplicarse:
 
 ## Decisiones pendientes
 
-- Confirmar si hay una edición argentina específica y si difiere de otras
-  ediciones.
-- Confirmar cuáles son las secciones reales del álbum físico estándar y cuántos
-  espacios ocupa cada una.
-- Confirmar si las 48 selecciones tienen exactamente la misma cantidad de
-  espacios.
-- Definir si el MVP necesita nombres de jugadores o solo códigos, secciones y
-  orden.
-- Definir el nivel de trazabilidad que quedará junto al dataset final.
+No quedan decisiones pendientes para cerrar el Incremento 1 del MVP.
 
 ## Material faltante
 
-- Fotos o escaneo propio del índice, checklist y páginas de secciones del álbum
-  físico.
-- Checklist oficial completo de Panini, si existe.
-- URL oficial de Panini correspondiente al país o edición exacta de Pedro.
-- Segunda revisión manual independiente de cualquier transcripción.
+No falta material para producir el dataset mínimo del MVP. Para auditorías
+futuras puede ser útil conservar fotos o escaneo del índice, checklist y páginas
+de secciones del álbum físico.
 
 ## Criterio de finalización del Incremento 1
 
-El Incremento 1 puede completarse solo cuando existan todos estos elementos:
+El Incremento 1 se considera completado porque existen todos estos elementos:
 
-- Fuente primaria suficientemente confiable identificada y conservada como
-  referencia.
-- Cobertura verificable de las 980 posiciones del álbum físico estándar.
-- Códigos confirmados sin duplicados.
-- Secciones confirmadas con nombres y orden.
-- Orden global y por sección confirmado.
+- `PANINI-00` documentada y validada.
+- `FWC-1..FWC-19` documentadas y validadas.
+- Lista exacta de las 48 selecciones confirmada.
+- Nombre canónico de cada sección de selección confirmado.
+- Posiciones `1..20` por selección confirmadas.
+- Orden de presentación confirmado.
+- Validación que produzca exactamente 980 posiciones únicas.
 - Procedimiento reproducible de obtención documentado.
 - Procedimiento de validación documentado y ejecutable.
-- Material concreto disponible para resolver discrepancias futuras.
 - Verificación de que las figuritas promocionales quedan fuera del dataset.
-
-Hasta entonces, el estado correcto del incremento es en curso.

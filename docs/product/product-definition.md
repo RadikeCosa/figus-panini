@@ -33,8 +33,24 @@ MVP. Incluye únicamente las posiciones del álbum físico estándar. Las figuri
 promocionales, incluidas las de Coca-Cola, quedan fuera de la colección principal
 y no participan del progreso, faltantes, repetidas, búsqueda ni backup.
 
-Los códigos, secciones y orden completos aún deben confirmarse en la
-documentación del dominio antes de construir el dataset.
+El MVP adopta una identidad mínima de posiciones: cada posición se identifica
+conceptualmente por un nombre canónico de sección y un número de posición dentro
+de esa sección. No se mantendrán por ahora campos separados como `sectionId`,
+`slug` y `displayName`.
+
+La estructura canónica es: una sección `PANINI` con la posición `00`, una
+sección `FWC` con posiciones `1` a `19`, y 48 secciones de selecciones con
+posiciones `1` a `20`. Total: `1 + 19 + 48 x 20 = 980`.
+
+El nombre canónico de cada sección debe permanecer estable una vez que existan
+colecciones guardadas; cualquier cambio futuro de nombre debe tratarse como una
+migración explícita. El orden del álbum es un dato de presentación, no parte de
+la identidad.
+
+No es necesario disponer de nombres de jugadores, tipo de figurita, escudos,
+fotos, imágenes, rareza ni otros metadatos editoriales para avanzar con el MVP.
+La lista y el orden de las 48 selecciones fueron confirmados por el responsable
+del proyecto a partir del orden de grupos del álbum.
 
 ### Colección del usuario
 
@@ -70,7 +86,7 @@ La app debe dejar ver el estado de la colección con rapidez, permitir ajustes s
 - No es una plataforma con cuentas o sincronización remota.
 - No es un sistema general de gestión de colecciones.
 - No incluye figuritas promocionales como parte de la colección principal.
-- No define todavía códigos, secciones ni orden completos del álbum ni inventa datos faltantes.
+- No requiere nombres de jugadores ni metadatos editoriales individuales para avanzar con el MVP.
 
 ## Relación con otros documentos
 
