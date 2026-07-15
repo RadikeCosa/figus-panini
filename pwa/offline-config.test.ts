@@ -75,4 +75,12 @@ describe("offline cache configuration", () => {
     expect(serviceWorkerSource).toContain("function buildShellNavigationCacheKey(url)");
     expect(serviceWorkerSource).toContain("return url.pathname;");
   });
+
+  it("does not cache App Router RSC navigation payloads", () => {
+    const serviceWorkerSource = readFileSync("public/sw.js", "utf8");
+
+    expect(serviceWorkerSource).not.toContain("text/x-component");
+    expect(serviceWorkerSource).not.toContain("__figus_pani_app_data");
+    expect(serviceWorkerSource).not.toContain("request.headers.get(\"rsc\")");
+  });
 });

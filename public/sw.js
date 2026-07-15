@@ -1,5 +1,5 @@
 const CACHE_PREFIX = "figus-pani";
-const CACHE_VERSION = "v1";
+const CACHE_VERSION = "v2";
 const SHELL_CACHE = `${CACHE_PREFIX}-shell-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `${CACHE_PREFIX}-runtime-${CACHE_VERSION}`;
 const PRECACHED_URLS = [
@@ -76,11 +76,6 @@ self.addEventListener("fetch", (event) => {
 
   if (isCacheableAsset(url)) {
     event.respondWith(handleAssetRequest(request));
-    return;
-  }
-
-  if (isShellAppDataRequest(request, url)) {
-    event.respondWith(handleShellAppDataRequest(request, url));
   }
 });
 
@@ -145,24 +140,6 @@ async function handleAssetRequest(request) {
   return response;
 }
 
-async function handleShellAppDataRequest(request, url) {
-  const cache = await caches.open(RUNTIME_CACHE);
-  const cacheKey = buildShellAppDataCacheKey(url);
-  const cachedResponse = await cache.match(cacheKey);
-
-  if (cachedResponse) {
-    return cachedResponse;
-  }
-
-  const response = await fetch(request);
-
-  if (response.ok) {
-    await cache.put(cacheKey, response.clone());
-  }
-
-  return response;
-}
-
 function isCacheableAsset(url) {
   return (
     url.pathname.startsWith("/_next/static/") ||
@@ -170,19 +147,4 @@ function isCacheableAsset(url) {
     url.pathname === "/manifest.webmanifest" ||
     url.pathname === "/favicon.ico"
   );
-}
-
-function isShellAppDataRequest(request, url) {
-  const accept = request.headers.get("accept") || "";
-
-  return (
-    SHELL_ROUTES.has(url.pathname) &&
-    (request.headers.get("rsc") === "1" ||
-      url.searchParams.has("_rsc") ||
-      accept.includes("text/x-component"))
-  );
-}
-
-function buildShellAppDataCacheKey(url) {
-  return `${url.pathname}?__figus_pani_app_data=1`;
 }

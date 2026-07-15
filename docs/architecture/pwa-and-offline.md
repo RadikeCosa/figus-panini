@@ -70,15 +70,40 @@ El registro:
 En desarrollo no se registra un worker nuevo para evitar interferencias con
 `next dev`.
 
+## Instalación por plataforma
+
+`../../app/_components/pwa-runtime.tsx` también centraliza la invitación de
+instalación. La instalación es una mejora progresiva y se separa por plataforma:
+
+- Android/desktop Chromium: si el navegador emite `beforeinstallprompt`, el
+  runtime guarda temporalmente el evento, cancela el comportamiento automático
+  con `preventDefault()` y muestra un bloque compacto con `Usar como app` e
+  `Instalar app`. El prompt se ejecuta solo después del toque explícito. Si el
+  usuario acepta, la invitación se oculta; si cancela, la acción queda
+  disponible mientras el evento siga vigente.
+- Android Chromium sin evento instalable: no se muestra un botón falso. Solo se
+  muestra la ayuda breve `También podés instalarla desde el menú del navegador.`
+  cuando la detección corresponde a Android con navegador Chromium compatible.
+- iPhone/iPad: no existe botón de instalación directa desde la web. En modo
+  navegador se muestra `Cómo agregarla` con los pasos de Safari: tocar
+  Compartir, elegir Agregar a pantalla de inicio y tocar Agregar.
+- Modo instalado/standalone: la invitación se oculta. La detección contempla
+  `display-mode: standalone` y el estado equivalente expuesto por iOS en
+  `navigator.standalone`.
+
+El evento `appinstalled` limpia la invitación cuando el navegador informa que la
+app quedó instalada. El runtime no accede al repositorio de colección ni a
+IndexedDB para decidir instalabilidad.
+
 ## Service worker
 
 El service worker vive en `../../public/sw.js`.
 
 Usa dos cachés versionadas:
 
-- `figus-pani-shell-v1`: rutas principales, manifest e iconos;
-- `figus-pani-runtime-v1`: assets locales versionados de Next.js y solicitudes
-  internas de navegación de las rutas del shell después de la primera carga.
+- `figus-pani-shell-v2`: rutas principales, manifest e iconos;
+- `figus-pani-runtime-v2`: assets locales versionados de Next.js después de la
+  primera carga.
 
 En `install` precachea explícitamente:
 
@@ -100,8 +125,8 @@ La estrategia separa tres mundos:
 
 - rutas de shell: cache-first hasta la próxima versión del service worker;
 - assets locales: cache-first con guardado runtime después de la primera carga;
-- navegación interna de App Router: cache-first para solicitudes RSC de las
-  rutas del shell, normalizadas por ruta;
+- navegación interna de App Router: las solicitudes RSC no se cachean en el
+  service worker; deben llegar a la versión activa de Next.js;
 - datos de usuario: únicamente IndexedDB, nunca Cache Storage.
 
 El service worker no cachea solicitudes remotas, métodos distintos de `GET` ni
@@ -198,7 +223,13 @@ incremento se verifican:
 - manifest detectado;
 - iconos disponibles;
 - service worker registrado;
-- app instalable cuando Chromium lo permite;
+- captura de `beforeinstallprompt` cuando Chromium lo permite;
+- `Instalar app` visible solo cuando existe un evento instalable;
+- ejecución del prompt solo después de una acción explícita;
+- manejo de aceptación, cancelación y `appinstalled`;
+- guía específica de iPhone/iPad sin botón falso;
+- ayuda de menú para Android Chromium cuando no hay evento instalable;
+- ocultamiento de invitaciones en modo standalone;
 - primera carga online;
 - navegación y recarga offline de rutas principales;
 - edición de colección offline;
@@ -208,11 +239,18 @@ incremento se verifican:
 - actualización del service worker sin borrar IndexedDB;
 - consola sin errores ni warnings relevantes.
 
+La validación en desktop Chromium sirve como apoyo técnico, pero no reemplaza la
+prueba en teléfonos reales. Android Chrome, otros Chromium móviles e iOS/iPadOS
+deben validarse por separado porque no exponen la misma API de instalación.
+
 ## Limitaciones
 
 `/album` es una ruta dinámica en el build de Next.js. El service worker cachea la
 ruta base `/album` durante la primera visita online. Una nueva versión del
 service worker vuelve a instalar el shell y actualiza esa respuesta cacheada.
+Las solicitudes RSC usadas por la navegación cliente de App Router no se guardan
+en Cache Storage porque son payloads internos dependientes de la versión y el
+estado del router.
 
 Recargas directas offline de rutas principales están cubiertas. En `/album`, el
 query `section` se preserva como parte de la URL visible y se resuelve en el

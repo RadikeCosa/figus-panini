@@ -20,8 +20,8 @@ Usar un service worker propio en `public/sw.js` con:
 
 - precache explícito de rutas principales, manifest e iconos;
 - cache-first para rutas principales hasta la próxima versión del service worker;
-- caché runtime solo para assets locales versionados de Next.js y solicitudes
-  internas de navegación de las rutas del shell;
+- caché runtime solo para assets locales versionados de Next.js;
+- no cachear payloads RSC de navegación interna de App Router;
 - cachés versionadas con prefijo `figus-pani-`;
 - limpieza de versiones anteriores en `activate`;
 - activación inmediata del nuevo worker y aviso discreto para recargar.
