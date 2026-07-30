@@ -143,7 +143,42 @@ Los totales distinguen:
 Las listas de faltantes y repetidas se derivan recorriendo el álbum canónico en
 orden global.
 
-## 7. Consulta Rápida De Posiciones
+## 7. Insights De Colección
+
+`domain/collection/collection-insights.ts` expone una proyección pura para que
+la interfaz pueda elegir mensajes, rankings compactos e hitos sin duplicar
+reglas de negocio en componentes visuales.
+
+La función principal es `buildCollectionInsights(collection)`. Deriva:
+
+- un resumen por cada una de las 48 selecciones, con pegadas únicas, total `20`,
+  faltantes, porcentaje, copias repetidas y estado completo;
+- cantidad de selecciones iniciadas y completas;
+- listado de selecciones completas;
+- selecciones incompletas más avanzadas;
+- selecciones incompletas cercanas a completarse, solo si tienen al menos `15`
+  de `20`;
+- total global de copias repetidas;
+- total global de faltantes;
+- próximo hito global.
+
+Los rankings de selecciones excluyen siempre `PANINI` y `FWC`. Los totales
+globales siguen usando las 980 posiciones canónicas completas.
+
+Los empates se conservan completos y en orden canónico. La proyección no elige
+un ganador arbitrario ni genera textos de UI; la interfaz decide si muestra
+nombres, cantidades o un resumen.
+
+El próximo hito global usa la secuencia fija:
+
+```text
+10, 25, 50, 100, 200, 350, 500, 650, 800, 900, 950, 980
+```
+
+El hito siempre queda por encima del progreso único actual. Si el álbum está
+completo, el hito es `null`.
+
+## 8. Consulta Rápida De Posiciones
 
 La consulta rápida interpreta entradas de texto como:
 
@@ -189,7 +224,7 @@ La misma lógica se reutiliza en entrada rápida y en la consulta contextual del
 dashboard, donde la escritura queda separada en una acción explícita posterior a
 la consulta.
 
-## 8. Operaciones Disponibles
+## 9. Operaciones Disponibles
 
 Las funciones públicas relevantes son:
 
@@ -221,10 +256,12 @@ Las funciones públicas relevantes son:
 - `getPhysicalCopyCount`: suma todas las copias físicas.
 - `getUniqueOwnedCount`: cuenta posiciones únicas poseídas.
 - `getDuplicateCopyCount`: suma copias repetidas.
+- `buildCollectionInsights`: proyecta resúmenes, rankings empatados e hitos para
+  insights de colección.
 - `normalizeCollection`: valida datos externos y devuelve colección normalizada
   con issues.
 
-## 9. Validación Y Normalización
+## 10. Validación Y Normalización
 
 Las operaciones internas validan contra el álbum canónico. Una posición
 desconocida no puede modificarse ni leerse como si fuera válida.
@@ -252,7 +289,7 @@ se reportan como issues.
 En arrays, si aparece una posición duplicada, se conserva la primera entrada
 válida procesada y la repetición se reporta como `duplicate-position`.
 
-## 10. Errores
+## 11. Errores
 
 `CollectionDomainError` se lanza cuando una operación interna recibe datos que no
 puede aceptar como estado válido:
@@ -269,7 +306,7 @@ De la misma forma, `parsePositionQuery` y la resolución de secciones no lanzan
 por errores normales de entrada del usuario. Devuelven estados explícitos para
 que la UI muestre mensajes breves sin exponer detalles técnicos.
 
-## 11. Invariantes
+## 12. Invariantes
 
 Los tests actuales comprueban estas invariantes:
 
@@ -297,8 +334,10 @@ Los tests actuales comprueban estas invariantes:
 - `PANINI`, `FWC` y selecciones validan sus rangos desde la definición canónica;
 - el estado de consulta distingue faltante, pegada y repetida sin modificar la
   colección.
+- los insights de selecciones excluyen `PANINI` y `FWC` de rankings, conservan
+  empates en orden canónico y calculan hitos solo por progreso único.
 
-## 12. Trade-Offs
+## 13. Trade-Offs
 
 Dataset generado frente a 980 objetos manuales: la generación declarativa reduce
 duplicación y hace visibles las reglas estructurales del álbum. El costo es que
@@ -329,7 +368,7 @@ sin producir cambios parciales silenciosos. El costo es mantener dos modos de
 tratamiento: error para llamadas internas inválidas y reporte para entrada
 externa.
 
-## 12. Fuera De Alcance Del Dominio
+## 14. Fuera De Alcance Del Dominio
 
 El dominio no implementa:
 
@@ -339,11 +378,12 @@ El dominio no implementa:
 - sincronización;
 - historial completo de cambios;
 - múltiples usuarios.
+- textos narrativos visibles o decisiones de composición de portada.
 
 La persistencia, el backup, la UI y la PWA consumen las reglas del dominio, pero
 mantienen sus responsabilidades en capas separadas.
 
-## 13. Relación Con Otras Capas
+## 15. Relación Con Otras Capas
 
 La persistencia guarda y recupera la colección sin duplicar reglas de validez.
 Antes de devolver datos externos usa las funciones de dominio para validar

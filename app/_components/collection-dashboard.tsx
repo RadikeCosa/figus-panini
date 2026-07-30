@@ -24,6 +24,12 @@ import {
   type PositionQueryResult,
   type PositionRef,
 } from "../../domain/collection/collection";
+import {
+  buildCollectionInsights,
+  type CollectionInsights,
+  type SelectionCollectionSummary,
+} from "../../domain/collection/collection-insights";
+import { buildAlbumSectionHref } from "../../domain/collection/collection-views";
 import type { CollectionRepository } from "../../infrastructure/persistence/collection-repository";
 import { createBrowserCollectionRepository } from "../repositories/browser-collection-repository";
 
@@ -43,6 +49,29 @@ type PersistCollectionChange = (
 type LastUndoAction = {
   position: PositionRef;
   operation: "add" | "remove";
+};
+
+type AlbumInsightPrimary = {
+  title: string;
+  detail: string;
+  kind:
+    | "empty"
+    | "album-complete"
+    | "completed-selections"
+    | "close-selections"
+    | "milestone"
+    | "started-selections";
+  sectionProgress?: SelectionCollectionSummary;
+};
+
+type AlbumInsightSecondary = {
+  label: string;
+  href?: string;
+  progress?: {
+    value: number;
+    max: number;
+    label: string;
+  };
 };
 
 export function CollectionDashboard({
@@ -200,6 +229,7 @@ function ReadySummary({
     const duplicates = getDuplicateCopyCount(collection);
     const percentage =
       progress.total === 0 ? 0 : Math.round((progress.owned / progress.total) * 100);
+    const insights = buildCollectionInsights(collection);
 
     return {
       progress,
@@ -207,6 +237,7 @@ function ReadySummary({
       missing,
       duplicates,
       percentage,
+      insights,
     };
   }, [collection]);
 
@@ -234,6 +265,12 @@ function ReadySummary({
         </p>
       </div>
 
+      <AlbumInsightsPanel
+        insights={metrics.insights}
+        owned={metrics.progress.owned}
+        total={metrics.progress.total}
+      />
+
       <dl className="grid grid-cols-2 gap-3">
         <MetricCard label="Pegadas" value={metrics.owned} />
         <MetricCard label="Faltantes" value={metrics.missing} />
@@ -242,6 +279,333 @@ function ReadySummary({
       </dl>
     </section>
   );
+}
+
+function AlbumInsightsPanel({
+  insights,
+  owned,
+  total,
+}: {
+  insights: CollectionInsights;
+  owned: number;
+  total: number;
+}) {
+  const primary = selectPrimaryAlbumInsight(insights, owned, total);
+  const secondaryItems = selectAlbumInsightSecondaryItems(insights, primary);
+
+  return (
+    <section
+      aria-labelledby="album-insights-title"
+      className="rounded-lg border border-zinc-200 bg-white p-4 shadow-sm"
+    >
+      <h2
+        id="album-insights-title"
+        className="text-base font-bold text-zinc-950"
+      >
+        Así va tu álbum
+      </h2>
+
+      <div className="mt-3 rounded-md border border-emerald-100 bg-emerald-50 p-3 text-emerald-950">
+        <p className="text-lg font-bold leading-6">{primary.title}</p>
+        {primary.sectionProgress ? (
+          <SelectionProgress
+            className="mt-3"
+            summary={primary.sectionProgress}
+          />
+        ) : null}
+        <p className="mt-2 text-sm font-medium leading-5">{primary.detail}</p>
+        {primary.sectionProgress ? (
+          <a
+            className="mt-3 inline-flex min-h-10 items-center rounded-md border border-emerald-700 bg-white px-3 py-2 text-sm font-semibold text-emerald-900 outline-offset-2 transition hover:bg-emerald-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-700"
+            href={buildAlbumSectionHref(primary.sectionProgress.section)}
+          >
+            Ver en álbum
+          </a>
+        ) : null}
+      </div>
+
+      {secondaryItems.length > 0 ? (
+        <ul className="mt-3 divide-y divide-zinc-100 rounded-md border border-zinc-200">
+          {secondaryItems.map((item) => (
+            <li key={item.label}>
+              <InsightSecondaryItem item={item} />
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </section>
+  );
+}
+
+function SelectionProgress({
+  className,
+  summary,
+}: {
+  className?: string;
+  summary: SelectionCollectionSummary;
+}) {
+  return (
+    <div className={className}>
+      <p className="text-sm font-semibold text-emerald-950">
+        {summary.owned} de {summary.total} pegadas
+      </p>
+      <div
+        aria-label={`${summary.section}: ${summary.owned} de ${summary.total} figuritas pegadas`}
+        aria-valuemax={summary.total}
+        aria-valuemin={0}
+        aria-valuenow={summary.owned}
+        className="mt-2 h-2.5 rounded-full bg-white"
+        role="progressbar"
+      >
+        <div
+          className="h-2.5 rounded-full bg-emerald-700"
+          style={{ width: `${summary.percentage}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function InsightSecondaryItem({ item }: { item: AlbumInsightSecondary }) {
+  const content = (
+    <div className="grid gap-2 px-3 py-3">
+      <p className="text-sm font-semibold leading-5 text-zinc-800">{item.label}</p>
+      {item.progress ? (
+        <div>
+          <div
+            aria-label={item.progress.label}
+            aria-valuemax={item.progress.max}
+            aria-valuemin={0}
+            aria-valuenow={item.progress.value}
+            className="mt-1 h-2 rounded-full bg-zinc-100"
+            role="progressbar"
+          >
+            <div
+              className="h-2 rounded-full bg-emerald-600"
+              style={{
+                width: `${Math.round((item.progress.value / item.progress.max) * 100)}%`,
+              }}
+            />
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+
+  if (!item.href) {
+    return content;
+  }
+
+  return (
+    <a
+      className="block rounded-md outline-offset-2 transition hover:bg-zinc-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-700"
+      href={item.href}
+    >
+      {content}
+    </a>
+  );
+}
+
+function selectPrimaryAlbumInsight(
+  insights: CollectionInsights,
+  owned: number,
+  total: number,
+): AlbumInsightPrimary {
+  if (owned === total) {
+    return {
+      kind: "album-complete",
+      title: "¡Álbum completo!",
+      detail: "Completaste las 980 figuritas.",
+    };
+  }
+
+  if (insights.completedSelectionCount > 0) {
+    return buildCompletedSelectionsInsight(insights.completedSelections);
+  }
+
+  if (insights.closestToCompletionSelections.length > 0) {
+    return buildCloseSelectionsInsight(insights.closestToCompletionSelections);
+  }
+
+  if (owned > 0 && insights.nextGlobalMilestone) {
+    const { remaining, target } = insights.nextGlobalMilestone;
+
+    return {
+      kind: "milestone",
+      title: "Tu próximo objetivo",
+      detail: `${remaining === 1 ? "Falta" : "Faltan"} ${remaining} para llegar a ${target} pegadas.`,
+    };
+  }
+
+  if (owned > 0) {
+    return {
+      kind: "started-selections",
+      title: "El álbum ya está en marcha",
+      detail:
+        insights.startedSelectionCount === 1
+          ? "Empezaste 1 selección de las 48."
+          : `Empezaste ${insights.startedSelectionCount} de las 48 selecciones.`,
+    };
+  }
+
+  return {
+    kind: "empty",
+    title: "Tu álbum está listo para empezar",
+    detail: "Cargá tu primera figurita.",
+  };
+}
+
+function buildCompletedSelectionsInsight(
+  completedSelections: SelectionCollectionSummary[],
+): AlbumInsightPrimary {
+  if (completedSelections.length === 1) {
+    const [selection] = completedSelections;
+
+    return {
+      kind: "completed-selections",
+      title: `¡${selection.section} está completa!`,
+      detail: "Ya tenés sus 20 figuritas.",
+      sectionProgress: selection,
+    };
+  }
+
+  if (completedSelections.length <= 3) {
+    return {
+      kind: "completed-selections",
+      title: `¡Ya completaste ${formatNameList(
+        completedSelections.map(({ section }) => section),
+      )}!`,
+      detail: `Son ${completedSelections.length} selecciones con 20 figuritas.`,
+    };
+  }
+
+  return {
+    kind: "completed-selections",
+    title: `¡Ya completaste ${completedSelections.length} selecciones!`,
+    detail: "Cada una ya tiene sus 20 figuritas.",
+  };
+}
+
+function buildCloseSelectionsInsight(
+  closeSelections: SelectionCollectionSummary[],
+): AlbumInsightPrimary {
+  const missingCounts = new Set(closeSelections.map(({ missing }) => missing));
+
+  if (closeSelections.length === 1) {
+    const [selection] = closeSelections;
+
+    return {
+      kind: "close-selections",
+      title: `${selection.section} está muy cerca`,
+      detail: `Le ${selection.missing === 1 ? "falta" : "faltan"} solo ${selection.missing} ${pluralize(
+        selection.missing,
+        "figurita",
+        "figuritas",
+      )}.`,
+      sectionProgress: selection,
+    };
+  }
+
+  const title =
+    closeSelections.length <= 3
+      ? `${formatNameList(closeSelections.map(({ section }) => section))} están muy cerca`
+      : `${closeSelections.length} selecciones están muy cerca`;
+  const detail =
+    missingCounts.size === 1
+      ? `Les faltan ${closeSelections[0].missing} ${pluralize(
+          closeSelections[0].missing,
+          "figurita",
+          "figuritas",
+        )} a cada una.`
+      : "Todas están a pocas figuritas de completarse.";
+
+  return {
+    kind: "close-selections",
+    title,
+    detail,
+  };
+}
+
+function selectAlbumInsightSecondaryItems(
+  insights: CollectionInsights,
+  primary: AlbumInsightPrimary,
+): AlbumInsightSecondary[] {
+  const items: AlbumInsightSecondary[] = [];
+
+  if (
+    primary.kind !== "started-selections" &&
+    insights.startedSelectionCount > 0 &&
+    insights.startedSelectionCount < 48
+  ) {
+    items.push({
+      label:
+        insights.startedSelectionCount === 1
+          ? "1 selección iniciada de 48"
+          : `${insights.startedSelectionCount} de 48 selecciones iniciadas`,
+      progress: {
+        value: insights.startedSelectionCount,
+        max: 48,
+        label:
+          insights.startedSelectionCount === 1
+            ? "1 selección iniciada de 48"
+            : `${insights.startedSelectionCount} de 48 selecciones iniciadas`,
+      },
+    });
+  }
+
+  if (insights.totalDuplicateCopyCount > 0) {
+    items.push({
+      label: `${insights.totalDuplicateCopyCount} ${pluralize(
+        insights.totalDuplicateCopyCount,
+        "copia disponible para cambiar",
+        "copias disponibles para cambiar",
+      )}`,
+      href: "/duplicates",
+    });
+  }
+
+  if (
+    primary.kind !== "close-selections" &&
+    insights.closestToCompletionSelections.length === 1
+  ) {
+    const [selection] = insights.closestToCompletionSelections;
+
+    items.push({
+      label: `${selection.section} · ${selection.owned} de ${selection.total}`,
+      href: buildAlbumSectionHref(selection.section),
+    });
+  }
+
+  if (
+    primary.kind !== "completed-selections" &&
+    insights.completedSelectionCount > 0
+  ) {
+    items.push({
+      label: `${insights.completedSelectionCount} ${pluralize(
+        insights.completedSelectionCount,
+        "selección completa",
+        "selecciones completas",
+      )}`,
+    });
+  }
+
+  return items.slice(0, 2);
+}
+
+function formatNameList(names: string[]): string {
+  if (names.length <= 1) {
+    return names[0] ?? "";
+  }
+
+  if (names.length === 2) {
+    return `${names[0]} y ${names[1]}`;
+  }
+
+  return `${names.slice(0, -1).join(", ")} y ${names.at(-1)}`;
+}
+
+function pluralize(count: number, singular: string, plural: string): string {
+  return count === 1 ? singular : plural;
 }
 
 function QuickPositionLookup({

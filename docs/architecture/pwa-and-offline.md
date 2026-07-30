@@ -80,16 +80,25 @@ instalación. La instalación es una mejora progresiva y se separa por plataform
   con `preventDefault()` y muestra un bloque compacto con `Usar como app` e
   `Instalar app`. El prompt se ejecuta solo después del toque explícito. Si el
   usuario acepta, la invitación se oculta; si cancela, la acción queda
-  disponible mientras el evento siga vigente.
+  disponible mientras el evento siga vigente, salvo que Pedro cierre el aviso.
 - Android Chromium sin evento instalable: no se muestra un botón falso. Solo se
   muestra la ayuda breve `También podés instalarla desde el menú del navegador.`
   cuando la detección corresponde a Android con navegador Chromium compatible.
+  La ayuda puede cerrarse.
 - iPhone/iPad: no existe botón de instalación directa desde la web. En modo
   navegador se muestra `Cómo agregarla` con los pasos de Safari: tocar
-  Compartir, elegir Agregar a pantalla de inicio y tocar Agregar.
+  Compartir, elegir Agregar a pantalla de inicio y tocar Agregar. La ayuda
+  puede cerrarse.
 - Modo instalado/standalone: la invitación se oculta. La detección contempla
   `display-mode: standalone` y el estado equivalente expuesto por iOS en
   `navigator.standalone`.
+
+Cuando solo hay ayuda de instalación, se muestra como bloque dentro del flujo al
+final de la app para no tapar controles de la portada. Puede cerrarse y respeta
+`safe-area-inset-bottom`. Los avisos operativos de offline y actualización se
+mantienen como avisos fijos sobre el borde inferior visible, con altura máxima
+acotada. Si hay un aviso operativo visible, la ayuda de instalación no se apila
+encima.
 
 El evento `appinstalled` limpia la invitación cuando el navegador informa que la
 app quedó instalada. El runtime no accede al repositorio de colección ni a
@@ -227,6 +236,7 @@ incremento se verifican:
 - `Instalar app` visible solo cuando existe un evento instalable;
 - ejecución del prompt solo después de una acción explícita;
 - manejo de aceptación, cancelación y `appinstalled`;
+- cierre explícito de la invitación o ayuda de instalación;
 - guía específica de iPhone/iPad sin botón falso;
 - ayuda de menú para Android Chromium cuando no hay evento instalable;
 - ocultamiento de invitaciones en modo standalone;

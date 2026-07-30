@@ -106,6 +106,7 @@ export function PwaRuntime({
   const [deferredInstallPrompt, setDeferredInstallPrompt] =
     useState<BeforeInstallPromptEvent | null>(null);
   const [installed, setInstalled] = useState(false);
+  const [installHelpDismissed, setInstallHelpDismissed] = useState(false);
 
   useEffect(() => {
     if (typeof navigator === "undefined") {
@@ -181,6 +182,7 @@ export function PwaRuntime({
 
     function handleBeforeInstallPrompt(event: Event) {
       event.preventDefault();
+      setInstallHelpDismissed(false);
       setDeferredInstallPrompt(event as BeforeInstallPromptEvent);
     }
 
@@ -227,22 +229,44 @@ export function PwaRuntime({
     !runningStandalone &&
     installEnvironment !== null &&
     isAndroidChromiumLike(installEnvironment);
+  const showInstallHelp =
+    !installHelpDismissed &&
+    (showInstallPrompt || showIosHelp || showAndroidMenuHelp);
+  const showOperationalNotice = isOffline || updateAvailable;
 
-  if (
-    !isOffline &&
-    !updateAvailable &&
-    !showInstallPrompt &&
-    !showIosHelp &&
-    !showAndroidMenuHelp
-  ) {
+  if (!showOperationalNotice && !showInstallHelp) {
     return null;
   }
 
+  const installHelpContent = showInstallHelp ? (
+    <PwaInstallHelp
+      showAndroidMenuHelp={showAndroidMenuHelp}
+      showInstallPrompt={showInstallPrompt}
+      showIosHelp={showIosHelp}
+      onClose={() => setInstallHelpDismissed(true)}
+      onInstall={() => void installApp()}
+    />
+  ) : null;
+
+  if (!showOperationalNotice) {
+    return (
+      <div className="px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)]">
+        <div
+          aria-live="polite"
+          className="mx-auto max-w-md rounded-lg border border-emerald-800 bg-emerald-950 px-4 py-3 text-sm text-white shadow-lg"
+          role="status"
+        >
+          {installHelpContent}
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="fixed inset-x-3 bottom-3 z-50 flex justify-center pointer-events-none">
+    <div className="pointer-events-none fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom)+0.75rem)] z-50 flex justify-center">
       <div
         aria-live="polite"
-        className="pointer-events-auto flex max-w-md flex-col gap-3 rounded-lg border border-emerald-800 bg-emerald-950 px-4 py-3 text-sm text-white shadow-lg"
+        className="pointer-events-auto flex max-h-[min(45dvh,18rem)] max-w-md flex-col gap-3 overflow-y-auto rounded-lg border border-emerald-800 bg-emerald-950 px-4 py-3 text-sm text-white shadow-lg"
         role="status"
       >
         <div className="flex flex-wrap items-center gap-3">
@@ -259,37 +283,90 @@ export function PwaRuntime({
             </button>
           ) : null}
         </div>
-        {showInstallPrompt ? (
-          <div className="flex flex-wrap items-center gap-3">
-            <div>
-              <p className="font-semibold">Usar como app</p>
-              <p className="text-emerald-50">
-                Acceso rápido desde el inicio y uso offline después de cargarla.
-              </p>
-            </div>
-            <button
-              className="min-h-11 rounded-md bg-white px-4 font-semibold text-emerald-950 outline-offset-2 hover:bg-emerald-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white"
-              type="button"
-              onClick={() => void installApp()}
-            >
-              Instalar app
-            </button>
-          </div>
-        ) : null}
-        {showIosHelp ? (
-          <div>
-            <p className="font-semibold">Cómo agregarla</p>
-            <ol className="mt-2 list-decimal space-y-1 pl-5 text-emerald-50">
-              <li>Tocá Compartir.</li>
-              <li>Elegí Agregar a pantalla de inicio.</li>
-              <li>Tocá Agregar.</li>
-            </ol>
-          </div>
-        ) : null}
-        {showAndroidMenuHelp ? (
-          <p>También podés instalarla desde el menú del navegador.</p>
-        ) : null}
       </div>
     </div>
+  );
+}
+
+function PwaInstallHelp({
+  showAndroidMenuHelp,
+  showInstallPrompt,
+  showIosHelp,
+  onClose,
+  onInstall,
+}: {
+  showAndroidMenuHelp: boolean;
+  showInstallPrompt: boolean;
+  showIosHelp: boolean;
+  onClose: () => void;
+  onInstall: () => void;
+}) {
+  if (showInstallPrompt) {
+    return (
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="min-w-0 flex-1">
+          <p className="font-semibold">Usar como app</p>
+          <p className="text-emerald-50">
+            Acceso rápido desde el inicio y uso offline después de cargarla.
+          </p>
+        </div>
+        <button
+          className="min-h-11 rounded-md bg-white px-4 font-semibold text-emerald-950 outline-offset-2 hover:bg-emerald-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white"
+          type="button"
+          onClick={onInstall}
+        >
+          Instalar app
+        </button>
+        <CloseInstallHelpButton label="Cerrar aviso de instalación" onClose={onClose} />
+      </div>
+    );
+  }
+
+  if (showIosHelp) {
+    return (
+      <div className="grid gap-3">
+        <div>
+          <p className="font-semibold">Cómo agregarla</p>
+          <ol className="mt-2 list-decimal space-y-1 pl-5 text-emerald-50">
+            <li>Tocá Compartir.</li>
+            <li>Elegí Agregar a pantalla de inicio.</li>
+            <li>Tocá Agregar.</li>
+          </ol>
+        </div>
+        <CloseInstallHelpButton label="Cerrar ayuda de instalación" onClose={onClose} />
+      </div>
+    );
+  }
+
+  if (showAndroidMenuHelp) {
+    return (
+      <div className="flex flex-wrap items-center gap-3">
+        <p className="min-w-0 flex-1">
+          También podés instalarla desde el menú del navegador.
+        </p>
+        <CloseInstallHelpButton label="Cerrar ayuda de instalación" onClose={onClose} />
+      </div>
+    );
+  }
+
+  return null;
+}
+
+function CloseInstallHelpButton({
+  label,
+  onClose,
+}: {
+  label: string;
+  onClose: () => void;
+}) {
+  return (
+    <button
+      aria-label={label}
+      className="min-h-11 rounded-md border border-emerald-700 px-3 font-semibold text-emerald-50 outline-offset-2 hover:bg-emerald-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white"
+      type="button"
+      onClick={onClose}
+    >
+      Cerrar
+    </button>
   );
 }

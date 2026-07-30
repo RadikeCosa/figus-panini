@@ -8,10 +8,13 @@ y repetidas, respaldo y restauración.
 
 La implementación actual permite abrir la ruta principal, cargar la colección
 local mediante el repositorio, distinguir carga, éxito y error, y mostrar un
-resumen real derivado del dominio. También permite consultar una posición por
-sección y número para saber si falta, está pegada o está repetida. La identidad
-PWA, el estado offline y el aviso de actualización viven en un runtime cliente
-separado para no convertir toda la aplicación en Client Component.
+resumen real derivado del dominio. La portada también muestra una sección
+compacta de insights llamada `Así va tu álbum`, calculada desde una proyección
+pura de dominio para elegir una única historia principal y hasta dos datos
+secundarios. También permite consultar una posición por sección y número para
+saber si falta, está pegada o está repetida. La identidad PWA, el estado offline
+y el aviso de actualización viven en un runtime cliente separado para no
+convertir toda la aplicación en Client Component.
 
 La ruta `/album` permite recorrer el álbum canónico por sección, ver métricas de
 la sección seleccionada, leer el estado de cada posición y corregir cantidades
@@ -94,7 +97,8 @@ El estado local del dashboard es explícito:
 Durante `loading` no se muestra una colección vacía provisional. Esto evita
 flashes de métricas falsas.
 
-Durante `ready` se renderiza el resumen.
+Durante `ready` se renderiza el resumen, la sección compacta de insights y los
+accesos principales.
 
 Durante `error` se muestra un mensaje comprensible y un botón para reintentar.
 El error técnico se registra en consola para desarrollo.
@@ -148,9 +152,10 @@ El resumen usa funciones públicas del dominio:
 - `getUniqueOwnedCount`;
 - `listMissingPositions`;
 - `getDuplicateCopyCount`.
+- `buildCollectionInsights`.
 
 La UI no recorre manualmente `copiesByPosition` para reconstruir reglas de
-negocio.
+negocio ni recalcula rankings, empates, progreso por selección o hitos.
 
 Las métricas visibles son:
 
@@ -161,6 +166,36 @@ Las métricas visibles son:
 - porcentaje completado.
 
 El porcentaje se redondea sin decimales.
+
+La jerarquía de la portada es:
+
+```text
+Header
+Consulta rápida
+Progreso global
+Así va tu álbum
+Pegadas / Faltantes / Repetidas / Total
+Próximas acciones
+```
+
+`Así va tu álbum` elige exactamente un insight principal con esta prioridad:
+
+1. álbum completo;
+2. selecciones completas;
+3. selecciones cerca de completarse;
+4. próximo hito global;
+5. selecciones iniciadas;
+6. colección vacía.
+
+Cuando el insight principal destaca una única selección, muestra su progreso
+compacto sobre `20` y enlaza a `/album?section=<sección>`. Si hay empates entre
+varias selecciones, conserva el empate y no elige un enlace arbitrario.
+
+Los datos secundarios se limitan a dos filas y priorizan: selecciones iniciadas,
+copias disponibles para cambiar, una única selección cercana no usada como
+insight principal y cantidad de selecciones completas. Las copias para cambiar
+enlazan a `/duplicates`. La sección no se renderiza durante `loading` ni
+`error`, porque no debe mostrar insights sobre datos provisorios.
 
 ## Consulta rápida
 

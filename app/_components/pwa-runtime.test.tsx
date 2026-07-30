@@ -202,6 +202,25 @@ describe("PwaRuntime", () => {
     expect(screen.getByRole("button", { name: "Instalar app" })).toBeTruthy();
   });
 
+  it("lets the user close the install invitation without running the prompt", async () => {
+    setInstallEnvironment({
+      userAgent:
+        "Mozilla/5.0 (Linux; Android 15) AppleWebKit/537.36 Chrome/126 Mobile Safari/537.36",
+    });
+    const installEvent = createBeforeInstallPromptEvent("dismissed");
+
+    render(<PwaRuntime registrationEnabled={false} />);
+    window.dispatchEvent(installEvent);
+
+    expect(await screen.findByText("Usar como app")).toBeTruthy();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Cerrar aviso de instalación" }),
+    );
+
+    expect(screen.queryByText("Usar como app")).toBeNull();
+    expect(installEvent.prompt).not.toHaveBeenCalled();
+  });
+
   it("hides the install invitation after appinstalled", async () => {
     setInstallEnvironment({
       userAgent:
@@ -252,6 +271,20 @@ describe("PwaRuntime", () => {
     expect(screen.queryByRole("button", { name: "Instalar app" })).toBeNull();
   });
 
+  it("lets the user close iOS install guidance", async () => {
+    setInstallEnvironment({
+      userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)",
+      platform: "iPhone",
+    });
+
+    render(<PwaRuntime registrationEnabled={false} />);
+
+    expect(await screen.findByText("Cómo agregarla")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Cerrar ayuda de instalación" }));
+
+    expect(screen.queryByText("Cómo agregarla")).toBeNull();
+  });
+
   it("shows Android menu guidance without a fake install button when no prompt event exists", async () => {
     setInstallEnvironment({
       userAgent:
@@ -265,6 +298,41 @@ describe("PwaRuntime", () => {
     ).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Instalar app" })).toBeNull();
     expect(screen.queryByText("Tocá Compartir.")).toBeNull();
+  });
+
+  it("lets the user close Android install guidance", async () => {
+    setInstallEnvironment({
+      userAgent:
+        "Mozilla/5.0 (Linux; Android 15) AppleWebKit/537.36 Chrome/126 Mobile Safari/537.36",
+    });
+
+    render(<PwaRuntime registrationEnabled={false} />);
+
+    expect(
+      await screen.findByText("También podés instalarla desde el menú del navegador."),
+    ).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Cerrar ayuda de instalación" }));
+
+    expect(
+      screen.queryByText("También podés instalarla desde el menú del navegador."),
+    ).toBeNull();
+  });
+
+  it("does not stack install help while the offline message is visible", async () => {
+    setNavigatorOnline(false);
+    setInstallEnvironment({
+      userAgent:
+        "Mozilla/5.0 (Linux; Android 15) AppleWebKit/537.36 Chrome/126 Mobile Safari/537.36",
+    });
+
+    render(<PwaRuntime registrationEnabled={false} />);
+
+    expect(
+      screen.getByText("Sin conexión · tus datos siguen disponibles en este dispositivo"),
+    ).toBeTruthy();
+    expect(
+      screen.queryByText("También podés instalarla desde el menú del navegador."),
+    ).toBeNull();
   });
 });
 
