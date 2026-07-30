@@ -1,6 +1,10 @@
 import { PDFDocument } from "pdf-lib";
 import { describe, expect, it } from "vitest";
-import { expandCanonicalAlbumPositions } from "../../domain/album/canonical-album";
+import {
+  expandCanonicalAlbumPositions,
+  SELECTION_GROUPS,
+  SELECTION_SECTIONS,
+} from "../../domain/album/canonical-album";
 import {
   createEmptyCollection,
   setCopies,
@@ -11,7 +15,12 @@ import {
   buildMissingListDocument,
   type MissingListDocument,
 } from "../../domain/collection/missing-list-document";
-import { createMissingListPdf } from "./missing-list-pdf";
+import {
+  __missingListPdfTestUtils,
+  createMissingListPdf,
+  MIN_READABLE_FONT_SIZE,
+  type MissingListPdfLayoutPlan,
+} from "./missing-list-pdf";
 
 const generatedAt = new Date("2026-07-30T15:20:10.000Z");
 
@@ -24,7 +33,7 @@ describe("missing list PDF generator", () => {
     expect(result.blob).toBeInstanceOf(Blob);
     expect(result.blob.type).toBe("application/pdf");
     expect(result.filename).toBe("figuritas-faltantes-2026-07-30.pdf");
-    await expectPdf(result.blob, { minPages: 2 });
+    await expectPdf(result.blob, { pages: 1, pageSize: "a4-portrait" });
   });
 
   it("does not mutate the received document", async () => {
@@ -71,14 +80,113 @@ describe("missing list PDF generator", () => {
     await expectPdf(result.blob, { pages: 1 });
   });
 
-  it("generates a multipage PDF for the empty collection with 980 missing positions", async () => {
+  it("generates a one-page portrait A4 PDF for the empty collection with 980 missing positions", async () => {
+    const document = buildMissingListDocument(createEmptyCollection(), generatedAt);
+    const plan = __missingListPdfTestUtils.planMissingListPdfLayout(document);
     const result = await createMissingListPdf(
-      buildMissingListDocument(createEmptyCollection(), generatedAt),
+      document,
     );
-    const pdf = await loadPdf(result.blob);
 
-    expect(pdf.getPageCount()).toBeGreaterThan(1);
+    expect(plan.config.orientation).toBe("portrait");
+    expect(plan.config.columns).toBe(3);
+    expect(plan.config.numberSize).toBeGreaterThanOrEqual(MIN_READABLE_FONT_SIZE);
+    expect(plan.pages).toHaveLength(1);
     expect(result.blob.size).toBeGreaterThan(3_000);
+    await expectPdf(result.blob, { pages: 1, pageSize: "a4-portrait" });
+    expectPlanContentWithinMargins(plan);
+  });
+
+  it("keeps every position explicit without ranges in complete sections", () => {
+    const document = buildMissingListDocument(createEmptyCollection(), generatedAt);
+    const plan = __missingListPdfTestUtils.planMissingListPdfLayout(document);
+    const sections = flattenPlanSections(plan);
+    const argentina = sections.find((section) => section.section === "Argentina");
+    const fwc = sections.find((section) => section.section === "FWC");
+
+    expect(sections[0]).toMatchObject({
+      section: "PANINI · 00",
+      positions: ["00"],
+    });
+    expect(fwc?.positions).toEqual(
+      Array.from({ length: 19 }, (_, index) => String(index + 1)),
+    );
+    expect(argentina?.numberLines.flat()).toEqual(
+      Array.from({ length: 20 }, (_, index) => String(index + 1)),
+    );
+    expect(argentina?.numberLines.map((line) => line.join(" "))).toEqual([
+      "1 2 3 4 5 6 7 8 9 10",
+      "11 12 13 14 15 16 17 18 19 20",
+    ]);
+    expect(flattenPlanText(plan)).not.toMatch(/1\s*[–-]\s*20/);
+  });
+
+  it("preserves canonical reading order, all groups and all 48 selections", () => {
+    const document = buildMissingListDocument(createEmptyCollection(), generatedAt);
+    const plan = __missingListPdfTestUtils.planMissingListPdfLayout(document);
+    const sections = flattenPlanSections(plan);
+    const selectionSections = sections
+      .filter(({ section }) => section !== "PANINI · 00" && section !== "FWC")
+      .map(({ section }) => section);
+    const groups = sections
+      .map(({ group }) => group)
+      .filter((group): group is string => group !== null);
+
+    expect(sections.map(({ section }) => section).slice(0, 2)).toEqual([
+      "PANINI · 00",
+      "FWC",
+    ]);
+    expect(selectionSections).toEqual(SELECTION_SECTIONS);
+    expect(new Set(selectionSections).size).toBe(48);
+    expect(groups).toEqual(SELECTION_GROUPS.map(({ group }) => group));
+  });
+
+  it("does not leave group headers isolated from their first section", () => {
+    const document = buildMissingListDocument(createEmptyCollection(), generatedAt);
+    const plan = __missingListPdfTestUtils.planMissingListPdfLayout(document);
+
+    for (const section of flattenPlanSections(plan)) {
+      if (section.group) {
+        expect(section.positions.length).toBeGreaterThan(0);
+        expect(section.numberLines.flat()).toEqual(section.positions);
+      }
+    }
+  });
+
+  it("uses a compact single-column layout for short partial lists", () => {
+    const ownedPositions = expandCanonicalAlbumPositions().filter(
+      (position) =>
+        ![
+          "México-1",
+          "México-4",
+          "Países Bajos-3",
+          "Túnez-8",
+          "Bélgica-9",
+        ].includes(`${position.section}-${position.position}`),
+    );
+    const document = buildMissingListDocument(
+      buildCollectionWithPositions(ownedPositions),
+      generatedAt,
+    );
+    const plan = __missingListPdfTestUtils.planMissingListPdfLayout(document);
+
+    expect(document.missingCount).toBe(5);
+    expect(plan.config.columns).toBe(1);
+    expect(plan.pages).toHaveLength(1);
+    expect(flattenPlanSections(plan).map(({ section }) => section)).toEqual([
+      "México",
+      "Países Bajos",
+      "Túnez",
+      "Bélgica",
+    ]);
+  });
+
+  it("falls back to multipage layout before going below the readable font size", () => {
+    const document = buildRepeatedMissingDocument(60);
+    const plan = __missingListPdfTestUtils.planMissingListPdfLayout(document);
+
+    expect(plan.pages.length).toBeGreaterThan(1);
+    expect(plan.config.numberSize).toBeGreaterThanOrEqual(MIN_READABLE_FONT_SIZE);
+    expectPlanContentWithinMargins(plan);
   });
 
   it("accepts the main visible text and accented section names in the document", async () => {
@@ -102,7 +210,7 @@ describe("missing list PDF generator", () => {
     const result = await createMissingListPdf(document);
 
     expect(result.blob.size).toBeGreaterThan(1_000);
-    await expectPdf(result.blob, { pages: 1 });
+    await expectPdf(result.blob, { pages: 1, pageSize: "a4-portrait" });
   });
 
   it("does not include promotional sections", async () => {
@@ -132,7 +240,9 @@ describe("missing list PDF generator", () => {
 
 async function expectPdf(
   blob: Blob,
-  expectation: { pages: number } | { minPages: number },
+  expectation:
+    | { pages: number; pageSize?: "a4-portrait" }
+    | { minPages: number; pageSize?: "a4-portrait" },
 ): Promise<void> {
   const bytes = new Uint8Array(await blob.arrayBuffer());
 
@@ -145,10 +255,13 @@ async function expectPdf(
   } else {
     expect(pdf.getPageCount()).toBeGreaterThanOrEqual(expectation.minPages);
   }
-}
 
-async function loadPdf(blob: Blob): Promise<PDFDocument> {
-  return PDFDocument.load(new Uint8Array(await blob.arrayBuffer()));
+  if (expectation.pageSize === "a4-portrait") {
+    const firstPage = pdf.getPage(0);
+
+    expect(firstPage.getWidth()).toBeCloseTo(595.28, 2);
+    expect(firstPage.getHeight()).toBeCloseTo(841.89, 2);
+  }
 }
 
 function buildCollectionWithAllPositions(): CollectionState {
@@ -172,6 +285,56 @@ function snapshotDocument(document: MissingListDocument) {
       ...section,
       positions: [...section.positions],
     })),
+  };
+}
+
+function flattenPlanSections(plan: MissingListPdfLayoutPlan) {
+  return plan.pages.flatMap((page) => page.flat());
+}
+
+function flattenPlanText(plan: MissingListPdfLayoutPlan): string {
+  return flattenPlanSections(plan)
+    .flatMap((section) => [
+      section.group ?? "",
+      section.section,
+      ...section.numberLines.map((line) => line.join(" ")),
+    ])
+    .join("\n");
+}
+
+function expectPlanContentWithinMargins(plan: MissingListPdfLayoutPlan): void {
+  const availableHeight = plan.contentTop - plan.contentBottom;
+
+  expect(plan.columnWidth).toBeGreaterThan(0);
+
+  for (const page of plan.pages) {
+    for (const column of page) {
+      const usedHeight = column.reduce((total, block) => total + block.height, 0);
+
+      expect(usedHeight).toBeLessThanOrEqual(availableHeight);
+    }
+  }
+}
+
+function buildRepeatedMissingDocument(repetitions: number): MissingListDocument {
+  const completeDocument = buildMissingListDocument(createEmptyCollection(), generatedAt);
+  const sections = Array.from({ length: repetitions }, (_, index) =>
+    completeDocument.sections.map((section) => ({
+      ...section,
+      section: `${section.section} ${index + 1}`,
+      positions: [...section.positions],
+    })),
+  ).flat();
+
+  return {
+    generatedAt,
+    totalCount: repetitions * completeDocument.totalCount,
+    ownedCount: 0,
+    missingCount: sections.reduce(
+      (total, section) => total + section.positions.length,
+      0,
+    ),
+    sections,
   };
 }
 

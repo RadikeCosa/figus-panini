@@ -34,6 +34,10 @@ describe.skipIf(!shouldGenerate)("missing list PDF samples", () => {
         filename: "coleccion-vacia-980-faltantes.pdf",
         collection: createEmptyCollection(),
       },
+      {
+        filename: "faltantes-fragmentados.pdf",
+        collection: buildFragmentedMissingCollection(),
+      },
     ];
 
     for (const sample of samples) {
@@ -60,6 +64,33 @@ function buildFewMissingCollection(): CollectionState {
     "Corea del Sur-18",
     "Costa de Marfil-20",
   ]);
+
+  return buildCollectionWithPositions(
+    expandCanonicalAlbumPositions().filter(
+      (position) =>
+        !missingIdentities.has(`${position.section}-${position.position}`),
+    ),
+  );
+}
+
+function buildFragmentedMissingCollection(): CollectionState {
+  const missingIdentities = new Set(
+    expandCanonicalAlbumPositions()
+      .filter((position) => {
+        if (position.section === "PANINI") {
+          return true;
+        }
+
+        const numericPosition = Number(position.position);
+
+        if (position.section === "FWC") {
+          return numericPosition % 3 === 1;
+        }
+
+        return numericPosition % 4 === 1 || numericPosition % 4 === 2;
+      })
+      .map((position) => `${position.section}-${position.position}`),
+  );
 
   return buildCollectionWithPositions(
     expandCanonicalAlbumPositions().filter(

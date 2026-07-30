@@ -43,9 +43,32 @@ offline y necesita una salida transportable como `Blob`.
 
 ## Layout
 
-El PDF usa A4 vertical, una columna, márgenes fijos, Helvetica estándar y
-paginado automático. Los grupos se muestran una vez por bloque de selecciones y
-`PANINI`/`FWC` no llevan grupo.
+El PDF usa A4 real. La primera opción es A4 vertical de `595.28 × 841.89`
+puntos. Para listas largas se planifica una grilla compacta de tres columnas con
+márgenes laterales cercanos a 10 mm, encabezado de dos líneas, grupos breves y
+números explícitos debajo de cada sección.
+
+El orden de lectura es por columna: primera columna de arriba abajo, luego la
+segunda y luego la tercera. La distribución puede cortar entre secciones para
+balancear la altura, pero no altera el orden canónico del álbum.
+
+Los grupos se imprimen solo cuando hay faltantes en alguna selección del grupo y
+quedan unidos al primer bloque de selección correspondiente, evitando encabezados
+aislados al final de una columna o página. `PANINI` se imprime como
+`PANINI · 00`; `FWC` usa la misma grilla compacta de números que las selecciones.
+
+Cada número faltante se muestra de forma individual. No se comprimen secuencias
+como rangos, por lo que una selección completa se ve como dos líneas de números:
+`1 2 3 4 5 6 7 8 9 10` y `11 12 13 14 15 16 17 18 19 20`.
+
+Para listas cortas el planificador puede usar una sola columna compacta, evitando
+reservar columnas vacías cuando hay pocos faltantes.
+
+La fuente mínima legible definida para el layout es de `7 pt`. Si A4 vertical en
+tres columnas no entra, el planificador intenta una variante vertical más
+compacta sin bajar de ese mínimo. Si aun así no alcanza, prueba A4 horizontal con
+cuatro columnas. El fallback final es multipágina con fuente legible; no se
+ocultan números ni se reduce la fuente indefinidamente.
 
 La fuente estándar cubre los caracteres usados por las secciones canónicas en
 español, incluidos `México`, `Países Bajos`, `Túnez`, `Bélgica`, `España` y
@@ -69,7 +92,8 @@ Archivos generados:
 
 - `album-completo.pdf`;
 - `pocos-faltantes.pdf`;
-- `coleccion-vacia-980-faltantes.pdf`.
+- `coleccion-vacia-980-faltantes.pdf`;
+- `faltantes-fragmentados.pdf`.
 
 ## Pendiente
 
