@@ -170,6 +170,15 @@ También quedan disponibles los assets locales y las solicitudes internas de
 navegación de Next.js necesarias para esas rutas cuando ya fueron solicitados al
 menos una vez.
 
+`/missing` forma parte del shell offline. La vista lee la colección desde
+IndexedDB y puede revisar faltantes sin conexión después de la primera carga
+online. La generación del PDF usa un generador cargado dinámicamente; el chunk de
+`pdf-lib` se guarda en la caché runtime solo después de haber sido solicitado al
+menos una vez. Por eso, generar la lista sin conexión está cubierto cuando Pedro
+ya abrió `Compartir lista` con conexión o cuando el chunk quedó previamente en
+Cache Storage. El primer intento de generación sin conexión, antes de descargar
+ese chunk, no está garantizado.
+
 ## IndexedDB
 
 La colección sigue viviendo en IndexedDB mediante el repositorio documentado en
@@ -181,9 +190,15 @@ Esto implica:
 - modificar cantidades offline sigue usando IndexedDB;
 - exportar backup offline lee la colección desde IndexedDB y genera un archivo
   local;
+- generar el PDF de faltantes offline usa la colección ya cargada desde
+  IndexedDB y produce un archivo local cuando el chunk del generador ya está
+  disponible;
 - restaurar backup offline lee el archivo elegido por el usuario y reemplaza
   IndexedDB mediante `CollectionRepository.save()`;
 - actualizar el service worker no borra la colección.
+
+El PDF de faltantes no se almacena en IndexedDB ni en Cache Storage. Compartir o
+descargar usa APIs locales del navegador y no escribe datos de colección.
 
 ## Actualización
 
@@ -245,6 +260,8 @@ incremento se verifican:
 - edición de colección offline;
 - entrada rápida offline;
 - faltantes y repetidas offline;
+- generación de PDF de faltantes offline después de haber cargado previamente el
+  chunk dinámico del generador;
 - exportación y restauración offline;
 - actualización del service worker sin borrar IndexedDB;
 - consola sin errores ni warnings relevantes.
@@ -261,6 +278,11 @@ service worker vuelve a instalar el shell y actualiza esa respuesta cacheada.
 Las solicitudes RSC usadas por la navegación cliente de App Router no se guardan
 en Cache Storage porque son payloads internos dependientes de la versión y el
 estado del router.
+
+La generación del PDF de faltantes depende de un chunk dinámico de Next.js. El
+service worker lo cachea como asset local de runtime después de su primera
+solicitud. Si la primera acción `Compartir lista` ocurre sin conexión antes de
+esa solicitud, el navegador puede no tener el generador disponible.
 
 Recargas directas offline de rutas principales están cubiertas. En `/album`, el
 query `section` se preserva como parte de la URL visible y se resuelve en el

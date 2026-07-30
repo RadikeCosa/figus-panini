@@ -16,6 +16,9 @@ La colección física es difícil de llevar mentalmente cuando hay muchas figuri
 
 La app ofrece una forma simple de seguir la colección desde el celular, con foco en uso mobile-first, persistencia local y una representación clara del estado real de la colección.
 
+También permite preparar una lista transportable de faltantes para imprimir o
+compartir durante intercambios.
+
 ## Objetivos del producto
 
 - Registrar y consultar la colección de forma confiable.

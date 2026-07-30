@@ -23,9 +23,10 @@ con persistencia local.
 La ruta `/quick-entry` permite registrar figuritas de a una con la misma
 resolución canónica de sección y número que usa la consulta rápida.
 
-La ruta `/missing` muestra una lista de solo lectura derivada de la colección
-persistida. La ruta `/duplicates` muestra repetidas y permite registrar
-entregas o corregir cantidades de esas posiciones.
+La ruta `/missing` muestra faltantes derivados de la colección persistida y
+permite generar la lista completa como PDF sin modificar cantidades. La ruta
+`/duplicates` muestra repetidas y permite registrar entregas o corregir
+cantidades de esas posiciones.
 
 La ruta `/backup` permite exportar y restaurar la colección con un contrato JSON
 versionado y validado antes de reemplazar datos.
@@ -342,6 +343,8 @@ Las vistas reutilizan proyecciones puras de dominio:
 
 `/missing` muestra total faltante, progreso global, secciones con faltantes,
 cantidad faltante por sección, progreso de sección y posiciones faltantes.
+También expone `Compartir lista`, que genera un PDF completo con la colección ya
+cargada, sin depender del filtro visible ni guardar cambios.
 
 `/duplicates` muestra copias repetidas totales, cantidad de posiciones con
 repetidas y, por sección, cada posición con copias totales y copias repetidas.
@@ -397,7 +400,8 @@ Existen rutas funcionales:
 
 - `/album`: álbum navegable con edición de cantidades.
 - `/quick-entry`: entrada rápida con persistencia y deshacer de la última suma.
-- `/missing`: lista funcional de faltantes con filtro por sección.
+- `/missing`: lista funcional de faltantes con filtro por sección y acción
+  `Compartir lista`.
 - `/duplicates`: lista funcional de repetidas con filtro por sección, entrega
   de repetidas y corrección de cantidad total.
 - `/backup`: exportación y restauración validada de la colección.
@@ -470,6 +474,8 @@ Cubren:
 - colección completa sin faltantes;
 - agrupación y orden canónico de faltantes;
 - filtros de faltantes sin recargar;
+- generación de PDF completo de faltantes desde la colección cargada;
+- cancelación de compartir sin error y descarga como fallback;
 - vista de repetidas vacía;
 - diferencia entre posiciones repetidas y copias repetidas;
 - agrupación y orden canónico de repetidas;

@@ -2,7 +2,8 @@
 
 ## Propósito
 
-`/missing` es una vista de solo lectura para revisar faltantes.
+`/missing` permite revisar faltantes y generar la lista completa como PDF sin
+modificar la colección.
 
 `/duplicates` permite revisar repetidas y realizar correcciones acotadas sobre
 esas posiciones sin entrar al álbum completo.
@@ -10,8 +11,9 @@ esas posiciones sin entrar al álbum completo.
 `/missing` ayuda a identificar posiciones faltantes. `/duplicates` ayuda a
 identificar copias disponibles para cambio.
 
-`/missing` sigue siendo una vista de consulta sobre la colección ya cargada, pero
-también expone una acción para generar la lista completa de faltantes como PDF.
+`/missing` sigue siendo una vista de consulta sobre la colección ya cargada para
+cantidades y filtros: la acción `Compartir lista` no escribe datos ni cambia el
+resultado visible.
 
 ## Carga y error
 
@@ -77,9 +79,11 @@ filtro visible de `/missing`.
 
 ## Compartir lista
 
-`/missing` muestra el botón `Compartir lista` dentro del resumen global, antes
-del filtro de secciones. El botón queda disponible también cuando el álbum está
-completo, porque el generador produce un PDF breve para ese caso.
+`/missing` muestra el botón `Compartir lista` dentro del resumen global, después
+del total de faltantes y antes del filtro de secciones. El botón aparece cuando
+la colección cargó correctamente y no existe en `/duplicates`. También queda
+disponible cuando el álbum está completo, porque el generador produce un PDF
+breve para ese caso.
 
 Al activar el botón, la UI:
 
@@ -93,6 +97,10 @@ Al activar el botón, la UI:
 La carga dinámica evita incluir `pdf-lib` en la carga inicial de la vista. No hay
 otra lectura de IndexedDB, no se llama a `CollectionRepository.save()` y la
 colección no se modifica.
+
+El documento generado siempre usa la lista completa de faltantes de la colección
+cargada. El filtro visible de secciones solo afecta la lista que se muestra en
+pantalla y no modifica el PDF.
 
 Mientras se genera o se abre el selector nativo, el botón queda deshabilitado y
 muestra `Generando lista…` para evitar ejecuciones simultáneas.
@@ -118,7 +126,9 @@ No se pudo generar la lista. Intentá nuevamente.
 ```
 
 No hay impresión directa, almacenamiento del PDF, cacheo de datos de usuario ni
-envío automático a WhatsApp.
+envío automático a WhatsApp. La app tampoco confirma que otra aplicación haya
+enviado el archivo: cuando el selector nativo termina sin error, la vista vuelve
+al estado inicial.
 
 ## Repetidas
 

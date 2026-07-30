@@ -36,6 +36,12 @@ describe("missing list PDF generator", () => {
     await expectPdf(result.blob, { pages: 1, pageSize: "a4-portrait" });
   });
 
+  it("formats the report timestamp with date and time", () => {
+    expect(__missingListPdfTestUtils.formatDisplayDate(generatedAt)).toBe(
+      "30/07/2026, 15:20",
+    );
+  });
+
   it("does not mutate the received document", async () => {
     const document = buildMissingListDocument(createEmptyCollection(), generatedAt);
     const before = snapshotDocument(document);

@@ -254,12 +254,16 @@ Este documento guía la secuencia de trabajo. No registra trabajo ya realizado n
   de faltantes y abrir el selector nativo cuando el navegador soporta archivos
   compartidos; si no, descarga el PDF.
 - Criterios de aceptación: la lista usa el universo canónico de 980 figuritas,
-  respeta el orden del álbum, agrupa por sección, conserva grupos de selecciones
-  y no incluye filtros visibles ni promocionales.
+  respeta el orden del álbum, agrupa por sección, conserva grupos de selecciones,
+  no incluye filtros visibles ni promocionales, muestra todos los números
+  individuales y entra en una hoja A4 vertical para la colección vacía.
 - Validaciones esperadas: tests unitarios de dominio, tests de PDF, tests de UI,
-  lint y build.
+  generación local de muestras, lint y build. La prueba manual en dispositivos
+  reales queda como validación operativa, no como incremento pendiente.
 - Documentación que debería actualizarse: `docs/product/mvp-scope.md` y
-  `docs/architecture/collection-views.md`.
+  `docs/architecture/collection-views.md`,
+  `docs/architecture/missing-list-pdf.md` y, si corresponde,
+  `docs/architecture/pwa-and-offline.md`.
 
 #### 10A. Proyección pura del documento
 
@@ -293,6 +297,22 @@ Este documento guía la secuencia de trabajo. No registra trabajo ya realizado n
   disponible en navegador.
 - Fuera de alcance: impresión directa, envío automático a WhatsApp y confirmación
   de entrega por una aplicación externa.
+
+#### 10D. Refinamiento de maquetación A4
+
+- Estado: completado.
+- Alcance: compactar la maquetación del PDF para usar A4 real con columnas,
+  encabezado reducido, todos los números explícitos y fallback multipágina
+  legible.
+- Resultado verificable: las muestras `album-completo.pdf`,
+  `pocos-faltantes.pdf`, `coleccion-vacia-980-faltantes.pdf` y
+  `faltantes-fragmentados.pdf` se generan como A4 vertical de una página; el caso
+  de 980 faltantes conserva `PANINI`, `FWC`, 48 selecciones, 12 grupos y números
+  individuales sin rangos.
+- Validaciones esperadas: tests del generador PDF, revisión con `pdfinfo`,
+  `pdftotext`, renderizado local de muestra, lint y build.
+- Fuera de alcance: impresión directa desde la app, plantillas configurables,
+  imágenes, nombres de jugadores y pruebas manuales exhaustivas por dispositivo.
 
 ## Relación con otros documentos
 
