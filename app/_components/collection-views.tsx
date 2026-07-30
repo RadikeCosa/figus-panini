@@ -13,6 +13,10 @@ import {
   type MissingSectionView,
 } from "../../domain/collection/collection-views";
 import {
+  buildMissingListDocument,
+  type MissingListDocument,
+} from "../../domain/collection/missing-list-document";
+import {
   getCopies,
   makePositionKey,
   removeCopy,
@@ -20,6 +24,11 @@ import {
   type CollectionState,
   type PositionRef,
 } from "../../domain/collection/collection";
+import {
+  shareOrDownloadFile as shareOrDownloadBrowserFile,
+  type ShareOrDownloadFileResult,
+} from "../../infrastructure/export/share-or-download-file";
+import type { MissingListPdfResult } from "../../infrastructure/export/missing-list-pdf";
 import type { CollectionRepository } from "../../infrastructure/persistence/collection-repository";
 import { createBrowserCollectionRepository } from "../repositories/browser-collection-repository";
 
@@ -30,6 +39,11 @@ type LoadState =
 
 type CollectionViewMode = "missing" | "duplicates";
 type SaveState = "idle" | "saving" | "error";
+type MissingListExportState =
+  | { status: "idle" }
+  | { status: "generating" }
+  | { status: "downloaded"; message: string }
+  | { status: "error"; message: string };
 type DuplicateFeedback =
   | {
       type: "success";
@@ -48,6 +62,12 @@ type DuplicateFeedback =
 type CollectionViewsProps = {
   mode: CollectionViewMode;
   createRepository?: () => CollectionRepository;
+  createMissingListPdf?: (document: MissingListDocument) => Promise<MissingListPdfResult>;
+  now?: () => Date;
+  shareOrDownloadFile?: (
+    file: File,
+    options: { title: string; text: string },
+  ) => Promise<ShareOrDownloadFileResult>;
 };
 
 const SECTION_OPTIONS = listCollectionSectionOptions();
@@ -56,6 +76,9 @@ const ALL_SECTIONS = "all";
 export function CollectionViews({
   mode,
   createRepository = createBrowserCollectionRepository,
+  createMissingListPdf = loadAndCreateMissingListPdf,
+  now = () => new Date(),
+  shareOrDownloadFile = shareOrDownloadBrowserFile,
 }: CollectionViewsProps) {
   const [loadState, setLoadState] = useState<LoadState>({ status: "loading" });
   const [selectedSection, setSelectedSection] = useState(ALL_SECTIONS);
@@ -284,8 +307,11 @@ export function CollectionViews({
             saveState={saveState}
             selectedSection={selectedSection}
             onCorrectDuplicateQuantity={correctDuplicateQuantity}
+            onCreateMissingListPdf={createMissingListPdf}
             onDeliverDuplicateCopy={deliverDuplicateCopy}
+            onNow={now}
             onSelectSection={setSelectedSection}
+            onShareOrDownloadFile={shareOrDownloadFile}
             onUndoDuplicateAction={undoLastDuplicateAction}
           />
         ) : null}
@@ -301,8 +327,11 @@ function CollectionViewReady({
   saveState,
   selectedSection,
   onCorrectDuplicateQuantity,
+  onCreateMissingListPdf,
   onDeliverDuplicateCopy,
+  onNow,
   onSelectSection,
+  onShareOrDownloadFile,
   onUndoDuplicateAction,
 }: {
   collection: CollectionState;
@@ -311,8 +340,16 @@ function CollectionViewReady({
   saveState: SaveState;
   selectedSection: string;
   onCorrectDuplicateQuantity: (position: PositionRef, copies: number) => void;
+  onCreateMissingListPdf: (
+    document: MissingListDocument,
+  ) => Promise<MissingListPdfResult>;
   onDeliverDuplicateCopy: (position: PositionRef) => void;
+  onNow: () => Date;
   onSelectSection: (section: string) => void;
+  onShareOrDownloadFile: (
+    file: File,
+    options: { title: string; text: string },
+  ) => Promise<ShareOrDownloadFileResult>;
   onUndoDuplicateAction: () => void;
 }) {
   if (mode === "missing") {
@@ -320,7 +357,10 @@ function CollectionViewReady({
       <MissingView
         collection={collection}
         selectedSection={selectedSection}
+        onCreateMissingListPdf={onCreateMissingListPdf}
+        onNow={onNow}
         onSelectSection={onSelectSection}
+        onShareOrDownloadFile={onShareOrDownloadFile}
       />
     );
   }
@@ -342,15 +382,67 @@ function CollectionViewReady({
 function MissingView({
   collection,
   selectedSection,
+  onCreateMissingListPdf,
+  onNow,
   onSelectSection,
+  onShareOrDownloadFile,
 }: {
   collection: CollectionState;
   selectedSection: string;
+  onCreateMissingListPdf: (
+    document: MissingListDocument,
+  ) => Promise<MissingListPdfResult>;
+  onNow: () => Date;
   onSelectSection: (section: string) => void;
+  onShareOrDownloadFile: (
+    file: File,
+    options: { title: string; text: string },
+  ) => Promise<ShareOrDownloadFileResult>;
 }) {
   const view = useMemo(() => buildMissingCollectionView(collection), [collection]);
   const sections = filterSections(view.sections, selectedSection);
   const isFiltered = selectedSection !== ALL_SECTIONS;
+  const [exportState, setExportState] = useState<MissingListExportState>({
+    status: "idle",
+  });
+  const exportInProgressRef = useRef(false);
+  const isGenerating = exportState.status === "generating";
+
+  const shareMissingList = useCallback(async () => {
+    if (exportInProgressRef.current) {
+      return;
+    }
+
+    exportInProgressRef.current = true;
+    setExportState({ status: "generating" });
+
+    try {
+      const document = buildMissingListDocument(collection, onNow());
+      const { blob, filename } = await onCreateMissingListPdf(document);
+      const file = new File([blob], filename, { type: "application/pdf" });
+      const result = await onShareOrDownloadFile(file, {
+        title: "Figuritas faltantes",
+        text: "Estas son las figuritas que nos faltan para completar el álbum.",
+      });
+
+      if (result.status === "downloaded") {
+        setExportState({
+          status: "downloaded",
+          message:
+            "El PDF quedó descargado. Podés enviarlo desde WhatsApp como documento.",
+        });
+      } else {
+        setExportState({ status: "idle" });
+      }
+    } catch {
+      setExportState({
+        status: "error",
+        message: "No se pudo generar la lista. Intentá nuevamente.",
+      });
+    } finally {
+      exportInProgressRef.current = false;
+    }
+  }, [collection, onCreateMissingListPdf, onNow, onShareOrDownloadFile]);
 
   return (
     <section aria-labelledby="missing-title" className="space-y-4">
@@ -367,7 +459,19 @@ function MissingView({
             ? "Tu colección guardada está vacía."
             : "Listado derivado de la colección guardada."}
         </p>
+        <button
+          className="mt-4 min-h-11 rounded-md bg-emerald-800 px-4 py-2 text-sm font-semibold text-white outline-offset-2 transition hover:bg-emerald-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-800 disabled:cursor-not-allowed disabled:bg-zinc-300 disabled:text-zinc-600"
+          type="button"
+          disabled={isGenerating}
+          onClick={() => {
+            void shareMissingList();
+          }}
+        >
+          {isGenerating ? "Generando lista…" : "Compartir lista"}
+        </button>
       </SummaryPanel>
+
+      <MissingListExportStatus exportState={exportState} />
 
       <SectionFilter
         label="Filtrar faltantes por sección"
@@ -393,6 +497,38 @@ function MissingView({
         </p>
       ) : null}
     </section>
+  );
+}
+
+function MissingListExportStatus({
+  exportState,
+}: {
+  exportState: MissingListExportState;
+}) {
+  if (exportState.status === "idle" || exportState.status === "generating") {
+    return null;
+  }
+
+  if (exportState.status === "error") {
+    return (
+      <p
+        aria-live="assertive"
+        className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-800 shadow-sm"
+        role="alert"
+      >
+        {exportState.message}
+      </p>
+    );
+  }
+
+  return (
+    <p
+      aria-live="polite"
+      className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800 shadow-sm"
+      role="status"
+    >
+      {exportState.message}
+    </p>
   );
 }
 
@@ -937,4 +1073,14 @@ function getViewCopy(mode: CollectionViewMode) {
     loadingLabel: "Calculando repetidas...",
     errorLabel: "No fue posible cargar repetidas",
   };
+}
+
+async function loadAndCreateMissingListPdf(
+  document: MissingListDocument,
+): Promise<MissingListPdfResult> {
+  const { createMissingListPdf } = await import(
+    "../../infrastructure/export/missing-list-pdf"
+  );
+
+  return createMissingListPdf(document);
 }

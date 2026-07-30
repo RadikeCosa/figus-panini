@@ -1,7 +1,14 @@
 /**
  * @vitest-environment jsdom
  */
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { expandCanonicalAlbumPositions } from "../../domain/album/canonical-album";
 import {
@@ -10,6 +17,9 @@ import {
   setCopies,
   type CollectionState,
 } from "../../domain/collection/collection";
+import type { MissingListDocument } from "../../domain/collection/missing-list-document";
+import type { MissingListPdfResult } from "../../infrastructure/export/missing-list-pdf";
+import type { ShareOrDownloadFileResult } from "../../infrastructure/export/share-or-download-file";
 import type { CollectionRepository } from "../../infrastructure/persistence/collection-repository";
 import { CollectionViews } from "./collection-views";
 
@@ -75,6 +85,12 @@ describe("CollectionViews missing", () => {
     expect(screen.getByText("19 faltantes · 0 de 19 pegadas")).toBeTruthy();
   });
 
+  it("shows the share list button only in the missing view after loading", async () => {
+    render(<CollectionViews mode="missing" createRepository={() => fakeRepository(createEmptyCollection())} />);
+
+    expect(await screen.findByRole("button", { name: "Compartir lista" })).toBeTruthy();
+  });
+
   it("shows a partial collection grouped by canonical section order", async () => {
     const collection = setCopies(
       setCopies(setCopies(createEmptyCollection(), panini, 1), mexico1, 1),
@@ -121,6 +137,293 @@ describe("CollectionViews missing", () => {
     expect(screen.queryByRole("heading", { name: "FWC" })).toBeNull();
     expect(screen.getByText("Filtro activo: México")).toBeTruthy();
     expect(load).toHaveBeenCalledTimes(1);
+  });
+
+  it("shares the complete missing list from the loaded collection after filtering", async () => {
+    const loadedCollection = setCopies(createEmptyCollection(), mexico1, 1);
+    const beforeExport = collectionSnapshot(loadedCollection);
+    const load = vi.fn<() => Promise<CollectionState>>().mockResolvedValue(
+      loadedCollection,
+    );
+    const save = vi.fn<CollectionRepository["save"]>().mockResolvedValue(undefined);
+    const repository: CollectionRepository = {
+      load,
+      save,
+      clear: vi.fn<CollectionRepository["clear"]>().mockResolvedValue(undefined),
+    };
+    const createMissingListPdf = vi
+      .fn<(document: MissingListDocument) => Promise<MissingListPdfResult>>()
+      .mockResolvedValue({
+        blob: new Blob(["pdf"], { type: "application/pdf" }),
+        filename: "figuritas-faltantes-2026-07-30.pdf",
+      });
+    const shareOrDownloadFile = vi
+      .fn<
+        (file: File, options: { title: string; text: string }) => Promise<ShareOrDownloadFileResult>
+      >()
+      .mockResolvedValue({ status: "shared" });
+
+    render(
+      <CollectionViews
+        mode="missing"
+        createRepository={() => repository}
+        createMissingListPdf={createMissingListPdf}
+        now={() => new Date("2026-07-30T10:00:00.000Z")}
+        shareOrDownloadFile={shareOrDownloadFile}
+      />,
+    );
+
+    await screen.findByRole("heading", { name: "979 faltantes" });
+    selectSection("México");
+    fireEvent.click(screen.getByRole("button", { name: "Compartir lista" }));
+
+    expect(await waitForMockCall(createMissingListPdf)).toBeTruthy();
+    expect(createMissingListPdf).toHaveBeenCalledTimes(1);
+    expect(createMissingListPdf.mock.calls[0][0]).toMatchObject({
+      generatedAt: new Date("2026-07-30T10:00:00.000Z"),
+      totalCount: 980,
+      ownedCount: 1,
+      missingCount: 979,
+    });
+    expect(
+      createMissingListPdf.mock.calls[0][0].sections.some(
+        ({ section }) => section === "FWC",
+      ),
+    ).toBe(true);
+    expect(
+      createMissingListPdf.mock.calls[0][0].sections.find(
+        ({ section }) => section === "México",
+      )?.positions,
+    ).toEqual(Array.from({ length: 19 }, (_, index) => String(index + 2)));
+    expect(shareOrDownloadFile).toHaveBeenCalledTimes(1);
+    const sharedFile = shareOrDownloadFile.mock.calls[0][0];
+    expect(sharedFile).toBeInstanceOf(File);
+    expect(sharedFile.name).toBe("figuritas-faltantes-2026-07-30.pdf");
+    expect(sharedFile.type).toBe("application/pdf");
+    expect(shareOrDownloadFile.mock.calls[0][1]).toEqual({
+      title: "Figuritas faltantes",
+      text: "Estas son las figuritas que nos faltan para completar el álbum.",
+    });
+    expect(load).toHaveBeenCalledTimes(1);
+    expect(save).not.toHaveBeenCalled();
+    expect(collectionSnapshot(loadedCollection)).toEqual(beforeExport);
+  });
+
+  it("loads the PDF generator only after clicking and disables duplicate execution", async () => {
+    const resolvePdfRef: {
+      current:
+        | ((value: MissingListPdfResult | PromiseLike<MissingListPdfResult>) => void)
+        | null;
+    } = { current: null };
+    const createMissingListPdf = vi.fn(
+      () =>
+        new Promise<MissingListPdfResult>((resolve) => {
+          resolvePdfRef.current = resolve;
+        }),
+    );
+    const shareOrDownloadFile = vi
+      .fn<
+        (file: File, options: { title: string; text: string }) => Promise<ShareOrDownloadFileResult>
+      >()
+      .mockResolvedValue({ status: "shared" });
+
+    render(
+      <CollectionViews
+        mode="missing"
+        createRepository={() => fakeRepository(createEmptyCollection())}
+        createMissingListPdf={createMissingListPdf}
+        shareOrDownloadFile={shareOrDownloadFile}
+      />,
+    );
+
+    await screen.findByRole("heading", { name: "980 faltantes" });
+    expect(createMissingListPdf).not.toHaveBeenCalled();
+
+    const button = screen.getByRole("button", {
+      name: "Compartir lista",
+    }) as HTMLButtonElement;
+    fireEvent.click(button);
+
+    expect(await screen.findByRole("button", { name: "Generando lista…" })).toBeTruthy();
+    expect(button.disabled).toBe(true);
+    fireEvent.click(button);
+    expect(createMissingListPdf).toHaveBeenCalledTimes(1);
+
+    if (!resolvePdfRef.current) {
+      throw new Error("PDF generation promise was not started.");
+    }
+
+    resolvePdfRef.current({
+      blob: new Blob(["pdf"], { type: "application/pdf" }),
+      filename: "figuritas-faltantes-2026-07-30.pdf",
+    });
+
+    expect(await screen.findByRole("button", { name: "Compartir lista" })).toBeTruthy();
+    expect(shareOrDownloadFile).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not show an error or download after share cancellation and allows retry", async () => {
+    const createMissingListPdf = vi
+      .fn<(document: MissingListDocument) => Promise<MissingListPdfResult>>()
+      .mockResolvedValue({
+        blob: new Blob(["pdf"], { type: "application/pdf" }),
+        filename: "figuritas-faltantes-2026-07-30.pdf",
+      });
+    const shareOrDownloadFile = vi
+      .fn<
+        (file: File, options: { title: string; text: string }) => Promise<ShareOrDownloadFileResult>
+      >()
+      .mockResolvedValueOnce({ status: "canceled" })
+      .mockResolvedValueOnce({ status: "shared" });
+
+    render(
+      <CollectionViews
+        mode="missing"
+        createRepository={() => fakeRepository(createEmptyCollection())}
+        createMissingListPdf={createMissingListPdf}
+        shareOrDownloadFile={shareOrDownloadFile}
+      />,
+    );
+
+    await screen.findByRole("heading", { name: "980 faltantes" });
+    fireEvent.click(screen.getByRole("button", { name: "Compartir lista" }));
+
+    expect(await screen.findByRole("button", { name: "Compartir lista" })).toBeTruthy();
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.queryByText(/PDF quedó descargado/)).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Compartir lista" }));
+    expect(await waitForMockCallCount(shareOrDownloadFile, 2)).toBeTruthy();
+  });
+
+  it("shows a download fallback message when sharing files is not supported", async () => {
+    const createMissingListPdf = vi
+      .fn<(document: MissingListDocument) => Promise<MissingListPdfResult>>()
+      .mockResolvedValue({
+        blob: new Blob(["pdf"], { type: "application/pdf" }),
+        filename: "figuritas-faltantes-2026-07-30.pdf",
+      });
+    const shareOrDownloadFile = vi
+      .fn<
+        (file: File, options: { title: string; text: string }) => Promise<ShareOrDownloadFileResult>
+      >()
+      .mockResolvedValue({ status: "downloaded" });
+
+    render(
+      <CollectionViews
+        mode="missing"
+        createRepository={() => fakeRepository(createEmptyCollection())}
+        createMissingListPdf={createMissingListPdf}
+        shareOrDownloadFile={shareOrDownloadFile}
+      />,
+    );
+
+    await screen.findByRole("heading", { name: "980 faltantes" });
+    fireEvent.click(screen.getByRole("button", { name: "Compartir lista" }));
+
+    expect(
+      await screen.findByText(
+        "El PDF quedó descargado. Podés enviarlo desde WhatsApp como documento.",
+      ),
+    ).toBeTruthy();
+  });
+
+  it("generates a real PDF through the default dynamic generator after clicking", async () => {
+    const shareOrDownloadFile = vi
+      .fn<
+        (file: File, options: { title: string; text: string }) => Promise<ShareOrDownloadFileResult>
+      >()
+      .mockResolvedValue({ status: "downloaded" });
+
+    render(
+      <CollectionViews
+        mode="missing"
+        createRepository={() => fakeRepository(createEmptyCollection())}
+        now={() => new Date("2026-07-30T10:00:00.000Z")}
+        shareOrDownloadFile={shareOrDownloadFile}
+      />,
+    );
+
+    await screen.findByRole("heading", { name: "980 faltantes" });
+    fireEvent.click(screen.getByRole("button", { name: "Compartir lista" }));
+
+    expect(await waitForMockCall(shareOrDownloadFile)).toBeTruthy();
+    const file = shareOrDownloadFile.mock.calls[0][0];
+    const header = new TextDecoder().decode(
+      new Uint8Array(await file.slice(0, 8).arrayBuffer()),
+    );
+
+    expect(file.name).toBe("figuritas-faltantes-2026-07-30.pdf");
+    expect(file.type).toBe("application/pdf");
+    expect(file.size).toBeGreaterThan(3_000);
+    expect(header).toBe("%PDF-1.7");
+  });
+
+  it("shows a retryable error when PDF generation fails", async () => {
+    const createMissingListPdf = vi
+      .fn<(document: MissingListDocument) => Promise<MissingListPdfResult>>()
+      .mockRejectedValueOnce(new Error("pdf"))
+      .mockResolvedValueOnce({
+        blob: new Blob(["pdf"], { type: "application/pdf" }),
+        filename: "figuritas-faltantes-2026-07-30.pdf",
+      });
+    const shareOrDownloadFile = vi
+      .fn<
+        (file: File, options: { title: string; text: string }) => Promise<ShareOrDownloadFileResult>
+      >()
+      .mockResolvedValue({ status: "shared" });
+
+    render(
+      <CollectionViews
+        mode="missing"
+        createRepository={() => fakeRepository(createEmptyCollection())}
+        createMissingListPdf={createMissingListPdf}
+        shareOrDownloadFile={shareOrDownloadFile}
+      />,
+    );
+
+    await screen.findByRole("heading", { name: "980 faltantes" });
+    fireEvent.click(screen.getByRole("button", { name: "Compartir lista" }));
+
+    expect((await screen.findByRole("alert")).textContent).toContain(
+      "No se pudo generar la lista. Intentá nuevamente.",
+    );
+    expect(shareOrDownloadFile).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Compartir lista" }));
+    expect(await waitForMockCall(shareOrDownloadFile)).toBeTruthy();
+  });
+
+  it("keeps the share button enabled for a complete album", async () => {
+    const collection = expandCanonicalAlbumPositions().reduce(
+      (current, position) => setCopies(current, position, 1),
+      createEmptyCollection(),
+    );
+    const createMissingListPdf = vi
+      .fn<(document: MissingListDocument) => Promise<MissingListPdfResult>>()
+      .mockResolvedValue({
+        blob: new Blob(["pdf"], { type: "application/pdf" }),
+        filename: "figuritas-faltantes-2026-07-30.pdf",
+      });
+
+    render(
+      <CollectionViews
+        mode="missing"
+        createRepository={() => fakeRepository(collection)}
+        createMissingListPdf={createMissingListPdf}
+        shareOrDownloadFile={async () => ({ status: "shared" })}
+      />,
+    );
+
+    await screen.findByText("No te falta ninguna figurita.");
+    fireEvent.click(screen.getByRole("button", { name: "Compartir lista" }));
+
+    expect(await waitForMockCall(createMissingListPdf)).toBeTruthy();
+    expect(createMissingListPdf.mock.calls[0][0]).toMatchObject({
+      ownedCount: 980,
+      missingCount: 0,
+      sections: [],
+    });
   });
 
   it("shows filter empty state when the selected section has no missing positions", async () => {
@@ -192,6 +495,7 @@ describe("CollectionViews duplicates", () => {
     expect(await screen.findByRole("heading", { name: "0 copias repetidas" })).toBeTruthy();
     expect(screen.getByText("0 posiciones con repetidas")).toBeTruthy();
     expect(screen.getByText("No tenés figuritas repetidas.")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Compartir lista" })).toBeNull();
   });
 
   it("shows one duplicate position and distinguishes copies from positions", async () => {
@@ -330,11 +634,11 @@ describe("CollectionViews duplicates", () => {
   });
 
   it("blocks duplicate delivery while a save is pending", async () => {
-    let resolveSave: (() => void) | null = null;
+    const resolveSaveRef: { current: (() => void) | null } = { current: null };
     const save = vi.fn<CollectionRepository["save"]>(
       () =>
         new Promise<void>((resolve) => {
-          resolveSave = resolve;
+          resolveSaveRef.current = resolve;
         }),
     );
     const collection = setCopies(createEmptyCollection(), argentina7, 3);
@@ -358,7 +662,11 @@ describe("CollectionViews duplicates", () => {
     fireEvent.click(deliverButton);
     expect(save).toHaveBeenCalledTimes(1);
 
-    resolveSave?.();
+    if (!resolveSaveRef.current) {
+      throw new Error("Save promise was not started.");
+    }
+
+    resolveSaveRef.current();
     expect(await screen.findByText("Argentina 7 actualizada.")).toBeTruthy();
   });
 
@@ -650,4 +958,26 @@ function openQuantityEditor(positionLabel: string): void {
   fireEvent.click(
     screen.getByRole("button", { name: `Corregir cantidad de ${positionLabel}` }),
   );
+}
+
+async function waitForMockCall<T extends (...args: never[]) => unknown>(
+  mock: ReturnType<typeof vi.fn<T>>,
+): Promise<boolean> {
+  return waitForMockCallCount(mock, 1);
+}
+
+async function waitForMockCallCount<T extends (...args: never[]) => unknown>(
+  mock: ReturnType<typeof vi.fn<T>>,
+  count: number,
+): Promise<boolean> {
+  await waitFor(() => {
+    expect(mock).toHaveBeenCalledTimes(count);
+  });
+  return true;
+}
+
+function collectionSnapshot(collection: CollectionState): CollectionState {
+  return {
+    copiesByPosition: { ...collection.copiesByPosition },
+  };
 }

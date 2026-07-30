@@ -7,6 +7,7 @@
 - Registrar una figurita con su cantidad.
 - Corregir la cantidad de una figurita.
 - Consultar faltantes.
+- Generar localmente un PDF completo de faltantes y compartirlo o descargarlo.
 - Consultar repetidas.
 - Registrar la entrega de una repetida durante un intercambio.
 - Exportar respaldo técnico.
@@ -48,6 +49,13 @@ Pedro ajusta una cantidad sin tener que reconstruir la colección desde cero.
 ### Consultar faltantes
 
 Pedro filtra o revisa solo las figuritas que aún no tiene.
+
+### Generar lista imprimible de faltantes
+
+Pedro puede generar localmente un PDF con la lista completa de faltantes. Si el
+navegador soporta compartir archivos, la app abre el selector nativo; si no, lo
+descarga como fallback. La app no envía automáticamente el archivo, no confirma
+entrega en otra aplicación y no implementa impresión directa.
 
 ### Consultar repetidas
 

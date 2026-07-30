@@ -10,6 +10,9 @@ esas posiciones sin entrar al álbum completo.
 `/missing` ayuda a identificar posiciones faltantes. `/duplicates` ayuda a
 identificar copias disponibles para cambio.
 
+`/missing` sigue siendo una vista de consulta sobre la colección ya cargada, pero
+también expone una acción para generar la lista completa de faltantes como PDF.
+
 ## Carga y error
 
 Ambas rutas cargan mediante `CollectionRepository.load()` desde el componente
@@ -40,6 +43,82 @@ Funciones principales:
 
 Estas funciones reutilizan el dominio existente: faltantes, repetidas, copias,
 progreso y orden canónico.
+
+Para la lista imprimible de faltantes existe además:
+
+```text
+domain/collection/missing-list-document.ts
+```
+
+`buildMissingListDocument` transforma una `CollectionState` y una fecha recibida
+en el contenido lógico completo del documento. Es una proyección pura: no usa
+React, IndexedDB, APIs del navegador, archivos ni librerías de PDF.
+
+Esta proyección siempre usa la lista completa de faltantes del álbum canónico y
+no depende del filtro visible en `/missing`. Las secciones especiales se
+representan sin grupo y las selecciones conservan el grupo canónico.
+
+La proyección no genera PDF, no descarga archivos, no imprime y no comparte
+contenido.
+
+La generación PDF vive separada en:
+
+```text
+infrastructure/export/missing-list-pdf.ts
+```
+
+`createMissingListPdf` consume únicamente un `MissingListDocument` ya construido
+y devuelve un `Blob` `application/pdf` junto con un nombre de archivo
+predecible. No recibe `CollectionState`, no recalcula faltantes, no lee
+IndexedDB y no accede a APIs de compartir o descarga.
+
+El PDF representa siempre la lista completa contenida en la proyección, no el
+filtro visible de `/missing`.
+
+## Compartir lista
+
+`/missing` muestra el botón `Compartir lista` dentro del resumen global, antes
+del filtro de secciones. El botón queda disponible también cuando el álbum está
+completo, porque el generador produce un PDF breve para ese caso.
+
+Al activar el botón, la UI:
+
+1. usa la `CollectionState` ya cargada en memoria;
+2. construye un `MissingListDocument` con la fecha actual;
+3. carga dinámicamente `infrastructure/export/missing-list-pdf.ts`;
+4. genera `{ blob, filename }`;
+5. crea un `File` PDF;
+6. delega en `infrastructure/export/share-or-download-file.ts`.
+
+La carga dinámica evita incluir `pdf-lib` en la carga inicial de la vista. No hay
+otra lectura de IndexedDB, no se llama a `CollectionRepository.save()` y la
+colección no se modifica.
+
+Mientras se genera o se abre el selector nativo, el botón queda deshabilitado y
+muestra `Generando lista…` para evitar ejecuciones simultáneas.
+
+La detección de capacidades usa `navigator.share`,
+`navigator.canShare({ files })` y no usa user-agent sniffing. Si el navegador
+soporta compartir archivos, se abre el selector nativo con el PDF adjunto,
+título y texto. Si la acción se cancela con `AbortError`, la vista vuelve al
+estado inicial sin mostrar error ni descargar el archivo.
+
+Si el navegador no soporta compartir archivos, la UI descarga el PDF con una URL
+temporal, revoca esa URL y muestra:
+
+```text
+El PDF quedó descargado. Podés enviarlo desde WhatsApp como documento.
+```
+
+Ante fallas reales de generación o APIs del navegador se muestra un error
+reintentable:
+
+```text
+No se pudo generar la lista. Intentá nuevamente.
+```
+
+No hay impresión directa, almacenamiento del PDF, cacheo de datos de usuario ni
+envío automático a WhatsApp.
 
 ## Repetidas
 
@@ -130,12 +209,12 @@ para este incremento y evita diseñar deep links de grilla antes de necesitarlos
 
 Estas vistas no implementan:
 
-- copiado de listas;
 - enlaces a posición individual dentro del álbum.
 
 ## Relación con otros documentos
 
 - [UI y flujo de estado](ui-and-state-flow.md)
 - [Navegación del álbum](album-navigation.md)
+- [PDF de faltantes](missing-list-pdf.md)
 - [Persistencia local](persistence.md)
 - [Roadmap de implementación](../planning/implementation-roadmap.md)

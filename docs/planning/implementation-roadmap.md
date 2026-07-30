@@ -242,6 +242,58 @@ Este documento guía la secuencia de trabajo. No registra trabajo ya realizado n
   Chromium y revisión funcional de las superficies críticas.
 - Documentación que debería actualizarse: los documentos afectados por los cambios concretos y, si corresponde, `docs/decisions/`.
 
+### 10. Lista imprimible y compartible de faltantes
+
+- Estado: completado.
+- Objetivo: permitir generar una lista completa de figuritas faltantes para
+  imprimir, descargar o compartir.
+- Alcance: proyección pura del contenido del documento, generación local de PDF
+  y acción visible para compartir o descargar el archivo.
+- Dependencias: vistas de faltantes, dominio puro y persistencia estable.
+- Resultado verificable: `/missing` permite generar un PDF de la lista completa
+  de faltantes y abrir el selector nativo cuando el navegador soporta archivos
+  compartidos; si no, descarga el PDF.
+- Criterios de aceptación: la lista usa el universo canónico de 980 figuritas,
+  respeta el orden del álbum, agrupa por sección, conserva grupos de selecciones
+  y no incluye filtros visibles ni promocionales.
+- Validaciones esperadas: tests unitarios de dominio, tests de PDF, tests de UI,
+  lint y build.
+- Documentación que debería actualizarse: `docs/product/mvp-scope.md` y
+  `docs/architecture/collection-views.md`.
+
+#### 10A. Proyección pura del documento
+
+- Estado: completado.
+- Alcance: crear una función pura que transforma una `CollectionState` y una
+  fecha recibida en el contenido lógico completo de la lista imprimible de
+  faltantes.
+- Resultado verificable: la proyección informa totales coherentes, secciones
+  faltantes ordenadas, posiciones por sección y grupo cuando corresponde.
+- Validaciones esperadas: tests unitarios de la proyección.
+- Fuera de alcance: generación de PDF, acciones visibles, descarga, impresión,
+  Web Share API y cambios de UI.
+
+#### 10B. Generación PDF
+
+- Estado: completado.
+- Alcance: convertir la proyección pura en un archivo PDF imprimible.
+- Resultado verificable: se puede generar un documento legible sin alterar el
+  estado de la colección.
+- Validaciones esperadas: tests del generador, suite de dominio, lint, build y
+  generación local de muestras para revisión manual.
+
+#### 10C. Compartir y descargar
+
+- Estado: completado.
+- Alcance: exponer acciones visibles desde la experiencia de faltantes para
+  compartir o descargar la lista.
+- Resultado verificable: Pedro puede iniciar la acción `Compartir lista` desde
+  `/missing` sin afectar la consulta actual ni la colección guardada.
+- Validaciones esperadas: tests de UI, build de producción y validación manual
+  disponible en navegador.
+- Fuera de alcance: impresión directa, envío automático a WhatsApp y confirmación
+  de entrega por una aplicación externa.
+
 ## Relación con otros documentos
 
 - [Definición del producto](../product/product-definition.md)
