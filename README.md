@@ -15,7 +15,8 @@ repetidas, sin cuentas, backend ni sincronización remota.
 - Álbum navegable por secciones y grupos.
 - Edición de cantidades desde el álbum.
 - Entrada rápida para cargar figuritas recién abiertas.
-- Vistas de faltantes y repetidas con filtros y acciones sobre repetidas.
+- Vista de faltantes con filtros, PDF compartible y copia como texto.
+- Vista de repetidas con filtros y acciones sobre copias disponibles.
 - Exportación y restauración de respaldo JSON validado.
 - Persistencia local en IndexedDB.
 - PWA instalable con uso offline después de una primera carga.

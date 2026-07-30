@@ -18,6 +18,7 @@ import {
   type CollectionState,
 } from "../../domain/collection/collection";
 import type { MissingListDocument } from "../../domain/collection/missing-list-document";
+import type { CopyTextResult } from "../../infrastructure/export/copy-text";
 import type { MissingListPdfResult } from "../../infrastructure/export/missing-list-pdf";
 import type { ShareOrDownloadFileResult } from "../../infrastructure/export/share-or-download-file";
 import type { CollectionRepository } from "../../infrastructure/persistence/collection-repository";
@@ -88,7 +89,8 @@ describe("CollectionViews missing", () => {
   it("shows the share list button only in the missing view after loading", async () => {
     render(<CollectionViews mode="missing" createRepository={() => fakeRepository(createEmptyCollection())} />);
 
-    expect(await screen.findByRole("button", { name: "Compartir lista" })).toBeTruthy();
+    expect(await screen.findByRole("button", { name: "Compartir PDF" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Copiar como texto" })).toBeTruthy();
   });
 
   it("shows a partial collection grouped by canonical section order", async () => {
@@ -139,6 +141,212 @@ describe("CollectionViews missing", () => {
     expect(load).toHaveBeenCalledTimes(1);
   });
 
+  it("copies the complete missing list text from the loaded collection after filtering", async () => {
+    const loadedCollection = setCopies(createEmptyCollection(), mexico1, 1);
+    const beforeCopy = collectionSnapshot(loadedCollection);
+    const load = vi.fn<() => Promise<CollectionState>>().mockResolvedValue(
+      loadedCollection,
+    );
+    const save = vi.fn<CollectionRepository["save"]>().mockResolvedValue(undefined);
+    const repository: CollectionRepository = {
+      load,
+      save,
+      clear: vi.fn<CollectionRepository["clear"]>().mockResolvedValue(undefined),
+    };
+    const formatMissingListMessage = vi.fn<(document: MissingListDocument) => string>(
+      () => "Estas son las figuritas que nos faltan:\n\nFWC: 1, 2",
+    );
+    const copyText = vi
+      .fn<(text: string) => Promise<CopyTextResult>>()
+      .mockResolvedValue({ status: "copied" });
+
+    render(
+      <CollectionViews
+        mode="missing"
+        createRepository={() => repository}
+        copyText={copyText}
+        formatMissingListMessage={formatMissingListMessage}
+        now={() => new Date("2026-07-30T10:00:00.000Z")}
+      />,
+    );
+
+    await screen.findByRole("heading", { name: "979 faltantes" });
+    selectSection("México");
+    fireEvent.click(screen.getByRole("button", { name: "Copiar como texto" }));
+
+    expect(await waitForMockCall(copyText)).toBeTruthy();
+    expect(formatMissingListMessage).toHaveBeenCalledTimes(1);
+    expect(formatMissingListMessage.mock.calls[0][0]).toMatchObject({
+      generatedAt: new Date("2026-07-30T10:00:00.000Z"),
+      totalCount: 980,
+      ownedCount: 1,
+      missingCount: 979,
+    });
+    expect(
+      formatMissingListMessage.mock.calls[0][0].sections.some(
+        ({ section }) => section === "FWC",
+      ),
+    ).toBe(true);
+    expect(
+      formatMissingListMessage.mock.calls[0][0].sections.find(
+        ({ section }) => section === "México",
+      )?.positions,
+    ).toEqual(Array.from({ length: 19 }, (_, index) => String(index + 2)));
+    expect(copyText).toHaveBeenCalledWith(
+      "Estas son las figuritas que nos faltan:\n\nFWC: 1, 2",
+    );
+    expect(
+      await screen.findByText("Lista copiada. Ya podés pegarla en WhatsApp."),
+    ).toBeTruthy();
+    expect(load).toHaveBeenCalledTimes(1);
+    expect(save).not.toHaveBeenCalled();
+    expect(collectionSnapshot(loadedCollection)).toEqual(beforeCopy);
+  });
+
+  it("does not call the text formatter or clipboard before clicking copy", async () => {
+    const formatMissingListMessage = vi.fn<(document: MissingListDocument) => string>(
+      () => "lista",
+    );
+    const copyText = vi
+      .fn<(text: string) => Promise<CopyTextResult>>()
+      .mockResolvedValue({ status: "copied" });
+
+    render(
+      <CollectionViews
+        mode="missing"
+        createRepository={() => fakeRepository(createEmptyCollection())}
+        copyText={copyText}
+        formatMissingListMessage={formatMissingListMessage}
+      />,
+    );
+
+    await screen.findByRole("heading", { name: "980 faltantes" });
+
+    expect(formatMissingListMessage).not.toHaveBeenCalled();
+    expect(copyText).not.toHaveBeenCalled();
+  });
+
+  it("disables duplicate copy execution and shows copying state", async () => {
+    const resolveCopyRef: {
+      current: ((value: CopyTextResult | PromiseLike<CopyTextResult>) => void) | null;
+    } = { current: null };
+    const copyText = vi.fn(
+      () =>
+        new Promise<CopyTextResult>((resolve) => {
+          resolveCopyRef.current = resolve;
+        }),
+    );
+
+    render(
+      <CollectionViews
+        mode="missing"
+        createRepository={() => fakeRepository(createEmptyCollection())}
+        copyText={copyText}
+        formatMissingListMessage={() => "lista"}
+      />,
+    );
+
+    await screen.findByRole("heading", { name: "980 faltantes" });
+    const copyButton = screen.getByRole("button", {
+      name: "Copiar como texto",
+    }) as HTMLButtonElement;
+
+    fireEvent.click(copyButton);
+
+    expect(await screen.findByRole("button", { name: "Copiando…" })).toBeTruthy();
+    expect(copyButton.disabled).toBe(true);
+    expect(
+      (screen.getByRole("button", { name: "Compartir PDF" }) as HTMLButtonElement)
+        .disabled,
+    ).toBe(true);
+    fireEvent.click(copyButton);
+    expect(copyText).toHaveBeenCalledTimes(1);
+
+    if (!resolveCopyRef.current) {
+      throw new Error("Copy promise was not started.");
+    }
+
+    resolveCopyRef.current({ status: "copied" });
+
+    expect(await screen.findByRole("button", { name: "Copiar como texto" })).toBeTruthy();
+  });
+
+  it("shows manual copy text when automatic fallback cannot copy", async () => {
+    render(
+      <CollectionViews
+        mode="missing"
+        createRepository={() => fakeRepository(createEmptyCollection())}
+        copyText={async () => ({ status: "manual", text: "PANINI: 00" })}
+        formatMissingListMessage={() => "PANINI: 00"}
+      />,
+    );
+
+    await screen.findByRole("heading", { name: "980 faltantes" });
+    fireEvent.click(screen.getByRole("button", { name: "Copiar como texto" }));
+
+    expect(
+      await screen.findByText(
+        "No se pudo copiar automáticamente. Seleccioná el texto y copiá.",
+      ),
+    ).toBeTruthy();
+    expect(screen.getByDisplayValue("PANINI: 00")).toBeTruthy();
+  });
+
+  it("shows a retryable error when copying text fails", async () => {
+    const copyText = vi
+      .fn<(text: string) => Promise<CopyTextResult>>()
+      .mockRejectedValueOnce(new Error("clipboard"))
+      .mockResolvedValueOnce({ status: "copied" });
+
+    render(
+      <CollectionViews
+        mode="missing"
+        createRepository={() => fakeRepository(createEmptyCollection())}
+        copyText={copyText}
+        formatMissingListMessage={() => "lista"}
+      />,
+    );
+
+    await screen.findByRole("heading", { name: "980 faltantes" });
+    fireEvent.click(screen.getByRole("button", { name: "Copiar como texto" }));
+
+    expect((await screen.findByRole("alert")).textContent).toContain(
+      "No se pudo copiar la lista.",
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Copiar como texto" }));
+    expect(await waitForMockCallCount(copyText, 2)).toBeTruthy();
+    expect(
+      await screen.findByText("Lista copiada. Ya podés pegarla en WhatsApp."),
+    ).toBeTruthy();
+  });
+
+  it("copies a friendly complete album message", async () => {
+    const collection = expandCanonicalAlbumPositions().reduce(
+      (current, position) => setCopies(current, position, 1),
+      createEmptyCollection(),
+    );
+    const copyText = vi
+      .fn<(text: string) => Promise<CopyTextResult>>()
+      .mockResolvedValue({ status: "copied" });
+
+    render(
+      <CollectionViews
+        mode="missing"
+        createRepository={() => fakeRepository(collection)}
+        copyText={copyText}
+      />,
+    );
+
+    await screen.findByText("No te falta ninguna figurita.");
+    fireEvent.click(screen.getByRole("button", { name: "Copiar como texto" }));
+
+    expect(await waitForMockCall(copyText)).toBeTruthy();
+    expect(copyText).toHaveBeenCalledWith(
+      "¡Álbum completo! Ya tenemos las 980 figuritas.",
+    );
+  });
+
   it("shares the complete missing list from the loaded collection after filtering", async () => {
     const loadedCollection = setCopies(createEmptyCollection(), mexico1, 1);
     const beforeExport = collectionSnapshot(loadedCollection);
@@ -175,7 +383,7 @@ describe("CollectionViews missing", () => {
 
     await screen.findByRole("heading", { name: "979 faltantes" });
     selectSection("México");
-    fireEvent.click(screen.getByRole("button", { name: "Compartir lista" }));
+    fireEvent.click(screen.getByRole("button", { name: "Compartir PDF" }));
 
     expect(await waitForMockCall(createMissingListPdf)).toBeTruthy();
     expect(createMissingListPdf).toHaveBeenCalledTimes(1);
@@ -240,11 +448,11 @@ describe("CollectionViews missing", () => {
     expect(createMissingListPdf).not.toHaveBeenCalled();
 
     const button = screen.getByRole("button", {
-      name: "Compartir lista",
+      name: "Compartir PDF",
     }) as HTMLButtonElement;
     fireEvent.click(button);
 
-    expect(await screen.findByRole("button", { name: "Generando lista…" })).toBeTruthy();
+    expect(await screen.findByRole("button", { name: "Generando PDF…" })).toBeTruthy();
     expect(button.disabled).toBe(true);
     fireEvent.click(button);
     expect(createMissingListPdf).toHaveBeenCalledTimes(1);
@@ -258,7 +466,7 @@ describe("CollectionViews missing", () => {
       filename: "figuritas-faltantes-2026-07-30.pdf",
     });
 
-    expect(await screen.findByRole("button", { name: "Compartir lista" })).toBeTruthy();
+    expect(await screen.findByRole("button", { name: "Compartir PDF" })).toBeTruthy();
     expect(shareOrDownloadFile).toHaveBeenCalledTimes(1);
   });
 
@@ -286,13 +494,13 @@ describe("CollectionViews missing", () => {
     );
 
     await screen.findByRole("heading", { name: "980 faltantes" });
-    fireEvent.click(screen.getByRole("button", { name: "Compartir lista" }));
+    fireEvent.click(screen.getByRole("button", { name: "Compartir PDF" }));
 
-    expect(await screen.findByRole("button", { name: "Compartir lista" })).toBeTruthy();
+    expect(await screen.findByRole("button", { name: "Compartir PDF" })).toBeTruthy();
     expect(screen.queryByRole("alert")).toBeNull();
     expect(screen.queryByText(/PDF quedó descargado/)).toBeNull();
 
-    fireEvent.click(screen.getByRole("button", { name: "Compartir lista" }));
+    fireEvent.click(screen.getByRole("button", { name: "Compartir PDF" }));
     expect(await waitForMockCallCount(shareOrDownloadFile, 2)).toBeTruthy();
   });
 
@@ -319,7 +527,7 @@ describe("CollectionViews missing", () => {
     );
 
     await screen.findByRole("heading", { name: "980 faltantes" });
-    fireEvent.click(screen.getByRole("button", { name: "Compartir lista" }));
+    fireEvent.click(screen.getByRole("button", { name: "Compartir PDF" }));
 
     expect(
       await screen.findByText(
@@ -345,7 +553,7 @@ describe("CollectionViews missing", () => {
     );
 
     await screen.findByRole("heading", { name: "980 faltantes" });
-    fireEvent.click(screen.getByRole("button", { name: "Compartir lista" }));
+    fireEvent.click(screen.getByRole("button", { name: "Compartir PDF" }));
 
     expect(await waitForMockCall(shareOrDownloadFile)).toBeTruthy();
     const file = shareOrDownloadFile.mock.calls[0][0];
@@ -383,14 +591,14 @@ describe("CollectionViews missing", () => {
     );
 
     await screen.findByRole("heading", { name: "980 faltantes" });
-    fireEvent.click(screen.getByRole("button", { name: "Compartir lista" }));
+    fireEvent.click(screen.getByRole("button", { name: "Compartir PDF" }));
 
     expect((await screen.findByRole("alert")).textContent).toContain(
       "No se pudo generar la lista. Intentá nuevamente.",
     );
     expect(shareOrDownloadFile).not.toHaveBeenCalled();
 
-    fireEvent.click(screen.getByRole("button", { name: "Compartir lista" }));
+    fireEvent.click(screen.getByRole("button", { name: "Compartir PDF" }));
     expect(await waitForMockCall(shareOrDownloadFile)).toBeTruthy();
   });
 
@@ -416,7 +624,7 @@ describe("CollectionViews missing", () => {
     );
 
     await screen.findByText("No te falta ninguna figurita.");
-    fireEvent.click(screen.getByRole("button", { name: "Compartir lista" }));
+    fireEvent.click(screen.getByRole("button", { name: "Compartir PDF" }));
 
     expect(await waitForMockCall(createMissingListPdf)).toBeTruthy();
     expect(createMissingListPdf.mock.calls[0][0]).toMatchObject({
@@ -495,7 +703,8 @@ describe("CollectionViews duplicates", () => {
     expect(await screen.findByRole("heading", { name: "0 copias repetidas" })).toBeTruthy();
     expect(screen.getByText("0 posiciones con repetidas")).toBeTruthy();
     expect(screen.getByText("No tenés figuritas repetidas.")).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "Compartir lista" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Compartir PDF" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Copiar como texto" })).toBeNull();
   });
 
   it("shows one duplicate position and distinguishes copies from positions", async () => {

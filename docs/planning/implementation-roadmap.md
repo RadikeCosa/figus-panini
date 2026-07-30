@@ -291,7 +291,7 @@ Este documento guía la secuencia de trabajo. No registra trabajo ya realizado n
 - Estado: completado.
 - Alcance: exponer acciones visibles desde la experiencia de faltantes para
   compartir o descargar la lista.
-- Resultado verificable: Pedro puede iniciar la acción `Compartir lista` desde
+- Resultado verificable: Pedro puede iniciar la acción `Compartir PDF` desde
   `/missing` sin afectar la consulta actual ni la colección guardada.
 - Validaciones esperadas: tests de UI, build de producción y validación manual
   disponible en navegador.
@@ -313,6 +313,21 @@ Este documento guía la secuencia de trabajo. No registra trabajo ya realizado n
   `pdftotext`, renderizado local de muestra, lint y build.
 - Fuera de alcance: impresión directa desde la app, plantillas configurables,
   imágenes, nombres de jugadores y pruebas manuales exhaustivas por dispositivo.
+
+#### 10E. Copiar faltantes como texto
+
+- Estado: completado.
+- Alcance: agregar una acción visible para copiar la lista completa de faltantes
+  como texto simple desde `/missing`.
+- Resultado verificable: Pedro puede usar `Copiar como texto`, pegar el mensaje
+  en WhatsApp u otra aplicación y obtener todas las figuritas faltantes en orden
+  canónico, sin rangos, sin depender del filtro visible y sin modificar la
+  colección.
+- Validaciones esperadas: tests del formatter puro, tests del helper de
+  portapapeles, tests de UI de `/missing`, tests de PDF para evitar regresiones,
+  suite completa, lint, typecheck y build.
+- Fuera de alcance: copiar repetidas, abrir WhatsApp, envío automático, acceso a
+  contactos, backend, cambios de IndexedDB y cambios de maquetación del PDF.
 
 ## Relación con otros documentos
 

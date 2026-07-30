@@ -175,7 +175,7 @@ IndexedDB y puede revisar faltantes sin conexión después de la primera carga
 online. La generación del PDF usa un generador cargado dinámicamente; el chunk de
 `pdf-lib` se guarda en la caché runtime solo después de haber sido solicitado al
 menos una vez. Por eso, generar la lista sin conexión está cubierto cuando Pedro
-ya abrió `Compartir lista` con conexión o cuando el chunk quedó previamente en
+ya abrió `Compartir PDF` con conexión o cuando el chunk quedó previamente en
 Cache Storage. El primer intento de generación sin conexión, antes de descargar
 ese chunk, no está garantizado.
 
@@ -281,7 +281,7 @@ estado del router.
 
 La generación del PDF de faltantes depende de un chunk dinámico de Next.js. El
 service worker lo cachea como asset local de runtime después de su primera
-solicitud. Si la primera acción `Compartir lista` ocurre sin conexión antes de
+solicitud. Si la primera acción `Compartir PDF` ocurre sin conexión antes de
 esa solicitud, el navegador puede no tener el generador disponible.
 
 Recargas directas offline de rutas principales están cubiertas. En `/album`, el

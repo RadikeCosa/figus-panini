@@ -343,8 +343,9 @@ Las vistas reutilizan proyecciones puras de dominio:
 
 `/missing` muestra total faltante, progreso global, secciones con faltantes,
 cantidad faltante por sección, progreso de sección y posiciones faltantes.
-También expone `Compartir lista`, que genera un PDF completo con la colección ya
-cargada, sin depender del filtro visible ni guardar cambios.
+También expone `Compartir PDF` y `Copiar como texto`. Ambas acciones usan la
+colección ya cargada, producen la lista completa sin depender del filtro visible
+y no guardan cambios.
 
 `/duplicates` muestra copias repetidas totales, cantidad de posiciones con
 repetidas y, por sección, cada posición con copias totales y copias repetidas.
@@ -400,8 +401,8 @@ Existen rutas funcionales:
 
 - `/album`: álbum navegable con edición de cantidades.
 - `/quick-entry`: entrada rápida con persistencia y deshacer de la última suma.
-- `/missing`: lista funcional de faltantes con filtro por sección y acción
-  `Compartir lista`.
+- `/missing`: lista funcional de faltantes con filtro por sección, acción
+  `Compartir PDF` y acción `Copiar como texto`.
 - `/duplicates`: lista funcional de repetidas con filtro por sección, entrega
   de repetidas y corrección de cantidad total.
 - `/backup`: exportación y restauración validada de la colección.
@@ -475,6 +476,7 @@ Cubren:
 - agrupación y orden canónico de faltantes;
 - filtros de faltantes sin recargar;
 - generación de PDF completo de faltantes desde la colección cargada;
+- copia de texto completo de faltantes desde la colección cargada;
 - cancelación de compartir sin error y descarga como fallback;
 - vista de repetidas vacía;
 - diferencia entre posiciones repetidas y copias repetidas;

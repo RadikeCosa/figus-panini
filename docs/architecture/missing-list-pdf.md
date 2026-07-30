@@ -182,7 +182,7 @@ automático.
 ## Carga dinámica y offline
 
 `/missing` importa dinámicamente `infrastructure/export/missing-list-pdf.ts` al
-tocar `Compartir lista`. Así `pdf-lib` no forma parte de la carga inicial de la
+tocar `Compartir PDF`. Así `pdf-lib` no forma parte de la carga inicial de la
 vista. En el build actual, el chunk cliente que contiene el generador y
 `pdf-lib` queda como asset estático de Next.js de aproximadamente `428 KB` sin
 comprimir.
@@ -190,7 +190,7 @@ comprimir.
 El service worker cachea assets de `/_next/static/` en runtime después de la
 primera solicitud. Por eso, la generación del PDF sin conexión queda disponible
 si `/missing` ya fue cargada y el chunk dinámico del generador fue solicitado al
-menos una vez con conexión. Si el primer intento de `Compartir lista` ocurre sin
+menos una vez con conexión. Si el primer intento de `Compartir PDF` ocurre sin
 conexión antes de haber descargado ese chunk, la disponibilidad no está
 garantizada.
 

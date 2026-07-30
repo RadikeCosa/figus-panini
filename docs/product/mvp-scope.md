@@ -10,6 +10,8 @@
 - Generar un PDF completo de figuritas faltantes.
 - Compartir el PDF mediante el selector nativo cuando el navegador admite archivos.
 - Descargar el PDF cuando compartir archivos no está disponible.
+- Copiar la lista completa de faltantes como texto para pegarla luego en
+  WhatsApp u otra aplicación.
 - Consultar repetidas.
 - Registrar la entrega de una repetida durante un intercambio.
 - Exportar respaldo técnico.
@@ -62,6 +64,16 @@ Si el navegador admite compartir archivos, la app abre el selector nativo con el
 PDF adjunto. Si no, descarga el archivo como fallback. La app no envía
 automáticamente el archivo, no confirma entrega en otra aplicación, no crea un
 enlace público, no usa backend y no implementa un botón directo de impresión.
+
+### Copiar lista de faltantes como texto
+
+Pedro puede copiar la lista completa de figuritas faltantes como texto simple,
+con todas las posiciones visibles y en orden canónico. La acción no depende del
+filtro visible, no modifica cantidades y no genera un PDF.
+
+El texto queda en el portapapeles para pegarlo después en WhatsApp u otra
+aplicación. La app no abre WhatsApp, no accede a contactos, no envía mensajes y
+no confirma que otra aplicación haya recibido el texto.
 
 ### Consultar repetidas
 

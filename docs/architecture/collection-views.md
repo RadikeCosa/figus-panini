@@ -12,8 +12,8 @@ esas posiciones sin entrar al álbum completo.
 identificar copias disponibles para cambio.
 
 `/missing` sigue siendo una vista de consulta sobre la colección ya cargada para
-cantidades y filtros: la acción `Compartir lista` no escribe datos ni cambia el
-resultado visible.
+cantidades y filtros: las acciones `Compartir PDF` y `Copiar como texto` no
+escriben datos ni cambian el resultado visible.
 
 ## Carga y error
 
@@ -77,15 +77,31 @@ IndexedDB y no accede a APIs de compartir o descarga.
 El PDF representa siempre la lista completa contenida en la proyección, no el
 filtro visible de `/missing`.
 
-## Compartir lista
+Para copiar la lista como texto existe además:
 
-`/missing` muestra el botón `Compartir lista` dentro del resumen global, después
-del total de faltantes y antes del filtro de secciones. El botón aparece cuando
-la colección cargó correctamente y no existe en `/duplicates`. También queda
-disponible cuando el álbum está completo, porque el generador produce un PDF
-breve para ese caso.
+```text
+domain/collection/missing-list-message.ts
+```
 
-Al activar el botón, la UI:
+`formatMissingListMessage` consume únicamente un `MissingListDocument` y devuelve
+texto plano determinista, compatible con WhatsApp u otras aplicaciones. No recibe
+`CollectionState`, no accede a React, IndexedDB, navegador ni Clipboard API. Para
+álbum completo devuelve `¡Álbum completo! Ya tenemos las 980 figuritas.`.
+
+## Acciones de faltantes
+
+`/missing` muestra dos botones dentro del resumen global, después del total de
+faltantes y antes del filtro de secciones:
+
+- `Compartir PDF`;
+- `Copiar como texto`.
+
+Ambos aparecen cuando la colección cargó correctamente y no existen en
+`/duplicates`. También quedan disponibles cuando el álbum está completo.
+
+### Compartir PDF
+
+Al activar `Compartir PDF`, la UI:
 
 1. usa la `CollectionState` ya cargada en memoria;
 2. construye un `MissingListDocument` con la fecha actual;
@@ -103,7 +119,7 @@ cargada. El filtro visible de secciones solo afecta la lista que se muestra en
 pantalla y no modifica el PDF.
 
 Mientras se genera o se abre el selector nativo, el botón queda deshabilitado y
-muestra `Generando lista…` para evitar ejecuciones simultáneas.
+muestra `Generando PDF…` para evitar ejecuciones simultáneas.
 
 La detección de capacidades usa `navigator.share`,
 `navigator.canShare({ files })` y no usa user-agent sniffing. Si el navegador
@@ -129,6 +145,45 @@ No hay impresión directa, almacenamiento del PDF, cacheo de datos de usuario ni
 envío automático a WhatsApp. La app tampoco confirma que otra aplicación haya
 enviado el archivo: cuando el selector nativo termina sin error, la vista vuelve
 al estado inicial.
+
+### Copiar como texto
+
+Al activar `Copiar como texto`, la UI:
+
+1. usa la `CollectionState` ya cargada en memoria;
+2. construye un `MissingListDocument` con la fecha actual;
+3. formatea el texto con `formatMissingListMessage`;
+4. delega en `infrastructure/export/copy-text.ts`.
+
+La acción no vuelve a llamar a `CollectionRepository.load()`, no llama a
+`CollectionRepository.save()`, no modifica cantidades, no genera PDF y no importa
+`pdf-lib`. También ignora el filtro visible: siempre copia la lista completa.
+
+El helper de portapapeles usa `navigator.clipboard.writeText` cuando está
+disponible. Si Clipboard API no existe, intenta un fallback local con un
+`textarea` temporal y `document.execCommand("copy")`, limpiando el elemento y
+restaurando el foco. Si ese fallback tampoco copia, la UI muestra el texto en un
+campo seleccionable con la indicación:
+
+```text
+No se pudo copiar automáticamente. Seleccioná el texto y copiá.
+```
+
+Durante la copia, la UI muestra `Copiando…` y deshabilita ambas acciones para
+evitar estados superpuestos. Cuando la copia automática funciona, muestra:
+
+```text
+Lista copiada. Ya podés pegarla en WhatsApp.
+```
+
+Si la copia falla por error real, muestra:
+
+```text
+No se pudo copiar la lista.
+```
+
+La app solo copia texto. No abre WhatsApp, no usa Web Share API para esta acción,
+no accede a contactos y no confirma envío.
 
 ## Repetidas
 
