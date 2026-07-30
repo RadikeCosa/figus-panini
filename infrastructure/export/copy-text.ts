@@ -4,10 +4,18 @@ export type CopyTextResult =
 
 export async function copyText(text: string): Promise<CopyTextResult> {
   if (canUseClipboardApi()) {
-    await navigator.clipboard.writeText(text);
-    return { status: "copied" };
+    try {
+      await navigator.clipboard.writeText(text);
+      return { status: "copied" };
+    } catch {
+      return copyTextWithFallback(text);
+    }
   }
 
+  return copyTextWithFallback(text);
+}
+
+function copyTextWithFallback(text: string): CopyTextResult {
   if (copyWithTextarea(text)) {
     return { status: "copied" };
   }
@@ -42,6 +50,8 @@ function copyWithTextarea(text: string): boolean {
     textarea.select();
 
     return document.execCommand("copy");
+  } catch {
+    return false;
   } finally {
     textarea.remove();
 

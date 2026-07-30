@@ -46,16 +46,35 @@ describe("copy text", () => {
     expect(writeText).toHaveBeenCalledWith("México: 1, 4");
   });
 
-  it("propagates Clipboard API errors for retryable UI feedback", async () => {
+  it("falls back when the Clipboard API rejects the copy request", async () => {
     const { copyText } = await import("./copy-text");
+    const execCommand = vi.fn<(command: string) => boolean>().mockReturnValue(true);
 
+    document.execCommand = execCommand;
     mockNavigator({
       clipboard: {
         writeText: vi.fn().mockRejectedValue(new Error("blocked")),
       },
     });
 
-    await expect(copyText("lista")).rejects.toThrow("blocked");
+    await expect(copyText("lista")).resolves.toEqual({ status: "copied" });
+    expect(execCommand).toHaveBeenCalledWith("copy");
+  });
+
+  it("returns manual text when Clipboard API and textarea fallback both fail", async () => {
+    const { copyText } = await import("./copy-text");
+
+    document.execCommand = vi.fn().mockReturnValue(false);
+    mockNavigator({
+      clipboard: {
+        writeText: vi.fn().mockRejectedValue(new Error("blocked")),
+      },
+    });
+
+    await expect(copyText("lista")).resolves.toEqual({
+      status: "manual",
+      text: "lista",
+    });
   });
 
   it("uses a textarea fallback and restores focus when Clipboard API is unavailable", async () => {
@@ -78,6 +97,21 @@ describe("copy text", () => {
     const { copyText } = await import("./copy-text");
 
     document.execCommand = vi.fn().mockReturnValue(false);
+    mockNavigator({});
+
+    await expect(copyText("Argentina: 7")).resolves.toEqual({
+      status: "manual",
+      text: "Argentina: 7",
+    });
+    expect(document.querySelector("textarea")).toBeNull();
+  });
+
+  it("cleans up and returns manual text when execCommand throws", async () => {
+    const { copyText } = await import("./copy-text");
+
+    document.execCommand = vi.fn(() => {
+      throw new Error("copy failed");
+    });
     mockNavigator({});
 
     await expect(copyText("Argentina: 7")).resolves.toEqual({

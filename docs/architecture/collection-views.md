@@ -160,10 +160,10 @@ La acción no vuelve a llamar a `CollectionRepository.load()`, no llama a
 `pdf-lib`. También ignora el filtro visible: siempre copia la lista completa.
 
 El helper de portapapeles usa `navigator.clipboard.writeText` cuando está
-disponible. Si Clipboard API no existe, intenta un fallback local con un
-`textarea` temporal y `document.execCommand("copy")`, limpiando el elemento y
-restaurando el foco. Si ese fallback tampoco copia, la UI muestra el texto en un
-campo seleccionable con la indicación:
+disponible. Si Clipboard API no existe o el navegador rechaza esa copia, intenta
+un fallback local con un `textarea` temporal y `document.execCommand("copy")`,
+limpiando el elemento y restaurando el foco. Si ese fallback tampoco copia, la
+UI muestra el texto en un campo seleccionable con la indicación:
 
 ```text
 No se pudo copiar automáticamente. Seleccioná el texto y copiá.
