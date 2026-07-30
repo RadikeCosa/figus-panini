@@ -21,8 +21,11 @@ describe("offline cache configuration", () => {
   });
 
   it("uses a versioned cache name", () => {
+    const serviceWorkerSource = readFileSync("public/sw.js", "utf8");
+
     expect(PWA_CACHE_PREFIX).toBe("figus-pani");
-    expect(PWA_CACHE_VERSION).toMatch(/^v\d+$/);
+    expect(PWA_CACHE_VERSION).toBe("v3");
+    expect(serviceWorkerSource).toContain(`const CACHE_VERSION = "${PWA_CACHE_VERSION}"`);
   });
 
   it("keeps the service worker precache list aligned with the tested config", () => {
@@ -74,6 +77,19 @@ describe("offline cache configuration", () => {
 
     expect(serviceWorkerSource).toContain("function buildShellNavigationCacheKey(url)");
     expect(serviceWorkerSource).toContain("return url.pathname;");
+  });
+
+  it("uses network-first navigation for shell routes with cached offline fallback", () => {
+    const serviceWorkerSource = readFileSync("public/sw.js", "utf8");
+    const fetchIndex = serviceWorkerSource.indexOf(
+      'const response = await fetch(new Request(request, { cache: "no-store" }))',
+    );
+    const cacheMatchIndex = serviceWorkerSource.indexOf(
+      "const cachedRoute = shellCacheKey ? await cache.match(shellCacheKey) : null",
+    );
+
+    expect(fetchIndex).toBeGreaterThan(-1);
+    expect(cacheMatchIndex).toBeGreaterThan(fetchIndex);
   });
 
   it("does not cache App Router RSC navigation payloads", () => {

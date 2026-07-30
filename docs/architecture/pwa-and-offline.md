@@ -110,8 +110,8 @@ El service worker vive en `../../public/sw.js`.
 
 Usa dos cachés versionadas:
 
-- `figus-pani-shell-v2`: rutas principales, manifest e iconos;
-- `figus-pani-runtime-v2`: assets locales versionados de Next.js después de la
+- `figus-pani-shell-v3`: rutas principales, manifest e iconos;
+- `figus-pani-runtime-v3`: assets locales versionados de Next.js después de la
   primera carga.
 
 En `install` precachea explícitamente:
@@ -132,7 +132,8 @@ versión vigente.
 
 La estrategia separa tres mundos:
 
-- rutas de shell: cache-first hasta la próxima versión del service worker;
+- rutas de shell: network-first cuando hay conexión, fallback cacheado sin
+  conexión;
 - assets locales: cache-first con guardado runtime después de la primera carga;
 - navegación interna de App Router: las solicitudes RSC no se cachean en el
   service worker; deben llegar a la versión activa de Next.js;
@@ -153,7 +154,9 @@ Cuando la URL visible incluye una sección, por ejemplo:
 el navegador conserva esa URL y el cliente de `/album` lee `section` desde la
 URL visible. Así el shell cacheado de `/album` puede abrir la sección solicitada
 también bajo control del service worker y offline, siempre que la ruta del álbum
-haya quedado disponible después de una visita online.
+haya quedado disponible después de una visita online. Cuando hay conexión, la
+navegación intenta red primero con `cache: "no-store"` y actualiza la entrada
+cacheada, para evitar que una instalación siga usando HTML viejo.
 
 ## Rutas disponibles offline
 
@@ -208,8 +211,12 @@ La actualización elegida es activación inmediata segura:
 2. el worker nuevo instala su caché versionada;
 3. `skipWaiting()` permite activar la versión nueva sin esperar otra apertura;
 4. `activate` limpia cachés viejas;
-5. el runtime muestra un aviso discreto para recargar cuando detecta una versión
-   nueva con una página ya controlada.
+5. `clients.claim()` toma control de las páginas abiertas;
+6. el runtime muestra un aviso discreto para recargar cuando detecta una versión
+   nueva con una página ya controlada, incluyendo workers que ya estaban en
+   `registration.waiting` al montar;
+7. al tocar `Actualizar`, si hay un worker esperando, la UI le envía
+   `SKIP_WAITING`; cuando ocurre `controllerchange`, recarga una sola vez.
 
 Trade-off: Pedro recibe la versión nueva rápido y las cachés viejas no quedan
 indefinidamente. El costo es que una pestaña abierta puede necesitar recarga
@@ -273,8 +280,9 @@ deben validarse por separado porque no exponen la misma API de instalación.
 ## Limitaciones
 
 `/album` es una ruta dinámica en el build de Next.js. El service worker cachea la
-ruta base `/album` durante la primera visita online. Una nueva versión del
-service worker vuelve a instalar el shell y actualiza esa respuesta cacheada.
+ruta base `/album` durante la primera visita online y la actualiza en
+navegaciones posteriores con conexión. Una nueva versión del service worker
+vuelve a instalar el shell y limpia respuestas de cachés antiguas.
 Las solicitudes RSC usadas por la navegación cliente de App Router no se guardan
 en Cache Storage porque son payloads internos dependientes de la versión y el
 estado del router.
@@ -306,6 +314,12 @@ del usuario. El costo es mantener la lista cuando cambien las rutas principales.
 Actualización inmediata frente a próxima apertura:
 se eligió activación inmediata con aviso de recarga para limpiar versiones
 viejas rápido. El costo es que una pestaña abierta puede requerir recarga.
+
+Network-first para shell frente a cache-first:
+se eligió intentar red en navegaciones de shell para que una PWA instalada reciba
+HTML nuevo aunque el contenido de `sw.js` no cambie en cada publicación. El costo
+es una navegación online levemente más dependiente de red, conservando fallback
+offline cacheado.
 
 Rutas completas offline frente a fallback limitado:
 se cachean las rutas del MVP, assets locales y navegación interna de App Router.

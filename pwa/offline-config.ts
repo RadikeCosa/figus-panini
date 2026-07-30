@@ -1,5 +1,5 @@
 export const PWA_CACHE_PREFIX = "figus-pani";
-export const PWA_CACHE_VERSION = "v2";
+export const PWA_CACHE_VERSION = "v3";
 
 export const PWA_SHELL_ROUTES = [
   "/",

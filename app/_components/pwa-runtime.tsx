@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type BeforeInstallPromptChoice = {
   outcome: "accepted" | "dismissed";
@@ -107,6 +107,9 @@ export function PwaRuntime({
     useState<BeforeInstallPromptEvent | null>(null);
   const [installed, setInstalled] = useState(false);
   const [installHelpDismissed, setInstallHelpDismissed] = useState(false);
+  const serviceWorkerRegistrationRef = useRef<ServiceWorkerRegistration | null>(null);
+  const waitingWorkerRef = useRef<ServiceWorker | null>(null);
+  const updateReloadRequestedRef = useRef(false);
 
   useEffect(() => {
     if (typeof navigator === "undefined") {
@@ -134,6 +137,26 @@ export function PwaRuntime({
 
     let active = true;
 
+    function markUpdateAvailable(worker: ServiceWorker | null) {
+      if (!navigator.serviceWorker.controller) {
+        return;
+      }
+
+      waitingWorkerRef.current = worker;
+      setUpdateAvailable(true);
+    }
+
+    function handleControllerChange() {
+      if (updateReloadRequestedRef.current) {
+        window.location.reload();
+        return;
+      }
+
+      if (navigator.serviceWorker.controller) {
+        setUpdateAvailable(true);
+      }
+    }
+
     async function registerServiceWorker() {
       try {
         const registration = await navigator.serviceWorker.register("/sw.js", {
@@ -143,6 +166,12 @@ export function PwaRuntime({
 
         if (!active) {
           return;
+        }
+
+        serviceWorkerRegistrationRef.current = registration;
+
+        if (registration.waiting) {
+          markUpdateAvailable(registration.waiting);
         }
 
         registration.addEventListener("updatefound", () => {
@@ -157,7 +186,7 @@ export function PwaRuntime({
               installingWorker.state === "installed" &&
               navigator.serviceWorker.controller
             ) {
-              setUpdateAvailable(true);
+              markUpdateAvailable(installingWorker);
             }
           });
         });
@@ -169,9 +198,14 @@ export function PwaRuntime({
     }
 
     void registerServiceWorker();
+    navigator.serviceWorker.addEventListener("controllerchange", handleControllerChange);
 
     return () => {
       active = false;
+      navigator.serviceWorker.removeEventListener(
+        "controllerchange",
+        handleControllerChange,
+      );
     };
   }, [registrationEnabled]);
 
@@ -213,6 +247,19 @@ export function PwaRuntime({
       setInstalled(true);
       setDeferredInstallPrompt(null);
     }
+  }
+
+  function applyUpdate() {
+    updateReloadRequestedRef.current = true;
+    const waitingWorker =
+      waitingWorkerRef.current ?? serviceWorkerRegistrationRef.current?.waiting;
+
+    if (waitingWorker) {
+      waitingWorker.postMessage({ type: "SKIP_WAITING" });
+      return;
+    }
+
+    window.location.reload();
   }
 
   const runningStandalone =
@@ -277,7 +324,7 @@ export function PwaRuntime({
             <button
               className="min-h-9 rounded-md bg-white px-3 font-semibold text-emerald-950 outline-offset-2 hover:bg-emerald-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white"
               type="button"
-              onClick={() => window.location.reload()}
+              onClick={applyUpdate}
             >
               Actualizar
             </button>

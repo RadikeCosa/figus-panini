@@ -165,6 +165,32 @@ describe("PwaRuntime", () => {
     expect(await screen.findByRole("button", { name: "Actualizar" })).toBeTruthy();
   });
 
+  it("shows an update action when a worker is already waiting at startup", async () => {
+    const waiting = createServiceWorker();
+    installServiceWorkerMock({
+      hasController: true,
+      waiting,
+    });
+
+    render(<PwaRuntime registrationEnabled />);
+
+    expect(await screen.findByRole("button", { name: "Actualizar" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Actualizar" }));
+
+    expect(waiting.postMessage).toHaveBeenCalledWith({ type: "SKIP_WAITING" });
+  });
+
+  it("shows an update action when the service worker controller changes before a requested reload", async () => {
+    const serviceWorker = installServiceWorkerMock({ hasController: true });
+
+    render(<PwaRuntime registrationEnabled />);
+
+    await waitFor(() => expect(serviceWorker.register).toHaveBeenCalled());
+    serviceWorker.dispatchControllerChange();
+
+    expect(await screen.findByRole("button", { name: "Actualizar" })).toBeTruthy();
+  });
+
   it("captures beforeinstallprompt and runs the prompt only after an explicit click", async () => {
     setInstallEnvironment({
       userAgent:
@@ -344,19 +370,27 @@ const baseInstallEnvironment: PwaInstallEnvironment = {
   standaloneDisplayMode: false,
 };
 
-function installServiceWorkerMock({ hasController = false } = {}) {
+function installServiceWorkerMock({
+  hasController = false,
+  waiting = null,
+}: {
+  hasController?: boolean;
+  waiting?: ReturnType<typeof createServiceWorker> | null;
+} = {}) {
   let updateFoundListener: (() => void) | null = null;
   let stateChangeListener: (() => void) | null = null;
-  const installing = {
-    state: "installing",
-    addEventListener: vi.fn((eventName: string, listener: () => void) => {
+  let controllerChangeListener: (() => void) | null = null;
+  const installing = createServiceWorker("installing");
+  installing.addEventListener.mockImplementation(
+    (eventName: string, listener: () => void) => {
       if (eventName === "statechange") {
         stateChangeListener = listener;
       }
-    }),
-  };
+    },
+  );
   const registration = {
     installing,
+    waiting,
     addEventListener: vi.fn((eventName: string, listener: () => void) => {
       if (eventName === "updatefound") {
         updateFoundListener = listener;
@@ -366,9 +400,16 @@ function installServiceWorkerMock({ hasController = false } = {}) {
   };
   const serviceWorker = {
     controller: hasController ? {} : null,
+    addEventListener: vi.fn((eventName: string, listener: () => void) => {
+      if (eventName === "controllerchange") {
+        controllerChangeListener = listener;
+      }
+    }),
+    removeEventListener: vi.fn(),
     register: vi.fn().mockResolvedValue(registration),
     dispatchUpdateFound: () => updateFoundListener?.(),
     dispatchInstallingStateChange: () => stateChangeListener?.(),
+    dispatchControllerChange: () => controllerChangeListener?.(),
     installing,
   };
 
@@ -378,6 +419,14 @@ function installServiceWorkerMock({ hasController = false } = {}) {
   });
 
   return serviceWorker;
+}
+
+function createServiceWorker(state = "installed") {
+  return {
+    state,
+    addEventListener: vi.fn(),
+    postMessage: vi.fn(),
+  };
 }
 
 function deleteServiceWorkerMock() {

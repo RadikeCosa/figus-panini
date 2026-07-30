@@ -19,7 +19,8 @@ worker propio, una librería de PWA o una caché dinámica más amplia.
 Usar un service worker propio en `public/sw.js` con:
 
 - precache explícito de rutas principales, manifest e iconos;
-- cache-first para rutas principales hasta la próxima versión del service worker;
+- network-first para navegaciones de rutas principales con fallback cacheado sin
+  conexión;
 - caché runtime solo para assets locales versionados de Next.js;
 - no cachear payloads RSC de navegación interna de App Router;
 - cachés versionadas con prefijo `figus-pani-`;
@@ -51,6 +52,10 @@ ruta principal nueva habrá que actualizar la lista de precache y sus tests.
 El service worker puede servir el shell offline, pero no convierte rutas no
 visitadas o desconocidas en funcionalidad completa. Las rutas fuera del shell
 deben mostrar una limitación clara si no están disponibles.
+
+Cuando hay conexión, las navegaciones del shell intentan red antes de Cache
+Storage. Esto evita que una PWA instalada quede usando indefinidamente HTML viejo
+si una publicación no cambia el contenido de `sw.js`.
 
 Actualizar el service worker no borra IndexedDB, porque la colección no forma
 parte de Cache Storage.

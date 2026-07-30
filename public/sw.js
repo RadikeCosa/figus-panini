@@ -1,5 +1,5 @@
 const CACHE_PREFIX = "figus-pani";
-const CACHE_VERSION = "v2";
+const CACHE_VERSION = "v3";
 const SHELL_CACHE = `${CACHE_PREFIX}-shell-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `${CACHE_PREFIX}-runtime-${CACHE_VERSION}`;
 const PRECACHED_URLS = [
@@ -82,14 +82,9 @@ self.addEventListener("fetch", (event) => {
 async function handleNavigationRequest(request, url) {
   const cache = await caches.open(SHELL_CACHE);
   const shellCacheKey = buildShellNavigationCacheKey(url);
-  const cachedRoute = shellCacheKey ? await cache.match(shellCacheKey) : null;
-
-  if (cachedRoute && shellCacheKey) {
-    return cachedRoute;
-  }
 
   try {
-    const response = await fetch(request);
+    const response = await fetch(new Request(request, { cache: "no-store" }));
 
     if (response.ok && shellCacheKey) {
       await cache.put(shellCacheKey, response.clone());
@@ -97,6 +92,12 @@ async function handleNavigationRequest(request, url) {
 
     return response;
   } catch {
+    const cachedRoute = shellCacheKey ? await cache.match(shellCacheKey) : null;
+
+    if (cachedRoute) {
+      return cachedRoute;
+    }
+
     if (shellCacheKey) {
       const cachedHome = await cache.match("/");
 
