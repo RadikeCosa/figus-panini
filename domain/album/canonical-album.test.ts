@@ -130,7 +130,7 @@ describe("canonical album definition", () => {
   });
 
   it("excludes promotional sections", () => {
-    const sections = new Set(positions.map((position) => position.section));
+    const sections = new Set<string>(positions.map((position) => position.section));
 
     expect(sections.has("Coca-Cola")).toBe(false);
     expect(sections.has("CC")).toBe(false);

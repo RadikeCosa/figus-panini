@@ -430,7 +430,7 @@ function createServiceWorker(state = "installed") {
 }
 
 function deleteServiceWorkerMock() {
-  delete (navigator as Navigator & { serviceWorker?: unknown }).serviceWorker;
+  Reflect.deleteProperty(navigator, "serviceWorker");
 }
 
 function setNavigatorOnline(value: boolean) {

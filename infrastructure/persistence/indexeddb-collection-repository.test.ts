@@ -83,7 +83,9 @@ describe("IndexedDB collection repository", () => {
     const collection = setCopies(createEmptyCollection(), mexico1, 2);
 
     await repository.save(collection);
-    collection.copiesByPosition[makePositionKey(mexico1)] = 10;
+    const mutableCopies = collection.copiesByPosition as Record<string, number>;
+
+    mutableCopies[makePositionKey(mexico1)] = 10;
 
     expect(getCopies(await repository.load(), mexico1)).toBe(2);
   });

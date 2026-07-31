@@ -448,11 +448,11 @@ describe("AlbumBrowser", () => {
   });
 
   it("blocks controls while a save is pending", async () => {
-    let resolveSave: (() => void) | null = null;
+    const resolveSaveRef: { current: (() => void) | null } = { current: null };
     const save = vi.fn<CollectionRepository["save"]>(
       () =>
         new Promise<void>((resolve) => {
-          resolveSave = resolve;
+          resolveSaveRef.current = resolve;
         }),
     );
     const repository = fakeRepository(createEmptyCollection(), save);
@@ -470,7 +470,12 @@ describe("AlbumBrowser", () => {
     ).toBe(true);
     expect(save).toHaveBeenCalledTimes(1);
 
-    resolveSave?.();
+    const finishSave = resolveSaveRef.current;
+    if (!finishSave) {
+      throw new Error("Save promise was not started.");
+    }
+
+    finishSave();
     expect(await screen.findByText("Cambios guardados.")).toBeTruthy();
   });
 

@@ -238,11 +238,11 @@ describe("BackupManager", () => {
   });
 
   it("blocks double confirmation while restoring", async () => {
-    let resolveSave: (() => void) | null = null;
+    const resolveSaveRef: { current: (() => void) | null } = { current: null };
     const save = vi.fn<CollectionRepository["save"]>(
       () =>
         new Promise<void>((resolve) => {
-          resolveSave = resolve;
+          resolveSaveRef.current = resolve;
         }),
     );
     const backupText = validBackupText({
@@ -268,7 +268,12 @@ describe("BackupManager", () => {
     expect(await screen.findByRole("button", { name: "Restaurando..." })).toBeTruthy();
     expect(save).toHaveBeenCalledTimes(1);
 
-    resolveSave?.();
+    const finishSave = resolveSaveRef.current;
+    if (!finishSave) {
+      throw new Error("Save promise was not started.");
+    }
+
+    finishSave();
     expect(await screen.findByText("Colección restaurada correctamente.")).toBeTruthy();
   });
 
