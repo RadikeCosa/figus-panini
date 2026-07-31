@@ -705,6 +705,7 @@ describe("CollectionViews duplicates", () => {
     expect(screen.getByText("No tenés figuritas repetidas.")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Compartir PDF" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Copiar como texto" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Copiar repetidas" })).toBeNull();
   });
 
   it("shows one duplicate position and distinguishes copies from positions", async () => {
@@ -738,6 +739,161 @@ describe("CollectionViews duplicates", () => {
     const headings = screen.getAllByRole("heading", { level: 3 }).map((heading) => heading.textContent);
     expect(headings).toEqual(["México", "Argentina", "Panamá"]);
     expect(screen.getByText("2 posiciones · 4 copias repetidas")).toBeTruthy();
+  });
+
+  it("copies the complete duplicate list text from the loaded collection after filtering", async () => {
+    const loadedCollection = setCopies(
+      setCopies(setCopies(createEmptyCollection(), mexico2, 4), argentina7, 2),
+      argentina18,
+      3,
+    );
+    const beforeCopy = collectionSnapshot(loadedCollection);
+    const load = vi.fn<() => Promise<CollectionState>>().mockResolvedValue(
+      loadedCollection,
+    );
+    const save = vi.fn<CollectionRepository["save"]>().mockResolvedValue(undefined);
+    const repository: CollectionRepository = {
+      load,
+      save,
+      clear: vi.fn<CollectionRepository["clear"]>().mockResolvedValue(undefined),
+    };
+    const copyText = vi
+      .fn<(text: string) => Promise<CopyTextResult>>()
+      .mockResolvedValue({ status: "copied" });
+
+    render(
+      <CollectionViews
+        mode="duplicates"
+        createRepository={() => repository}
+        copyText={copyText}
+      />,
+    );
+
+    await screen.findByRole("heading", { name: "6 copias repetidas" });
+    selectSection("Argentina");
+    fireEvent.click(screen.getByRole("button", { name: "Copiar repetidas" }));
+
+    expect(await waitForMockCall(copyText)).toBeTruthy();
+    expect(copyText).toHaveBeenCalledWith(
+      [
+        "Tengo estas figuritas repetidas para cambiar:",
+        "",
+        "Grupo A",
+        "México: 2 (x3)",
+        "",
+        "Grupo J",
+        "Argentina: 7, 18 (x2)",
+      ].join("\n"),
+    );
+    expect(
+      await screen.findByText(
+        "Lista de repetidas copiada. Ya podés pegarla en WhatsApp.",
+      ),
+    ).toBeTruthy();
+    expect(load).toHaveBeenCalledTimes(1);
+    expect(save).not.toHaveBeenCalled();
+    expect(collectionSnapshot(loadedCollection)).toEqual(beforeCopy);
+  });
+
+  it("disables only duplicate copy execution while copying", async () => {
+    const resolveCopyRef: {
+      current: ((value: CopyTextResult | PromiseLike<CopyTextResult>) => void) | null;
+    } = { current: null };
+    const copyText = vi.fn(
+      () =>
+        new Promise<CopyTextResult>((resolve) => {
+          resolveCopyRef.current = resolve;
+        }),
+    );
+    const collection = setCopies(createEmptyCollection(), argentina7, 2);
+
+    render(
+      <CollectionViews
+        mode="duplicates"
+        createRepository={() => fakeRepository(collection)}
+        copyText={copyText}
+      />,
+    );
+
+    await screen.findByRole("heading", { name: "1 copias repetidas" });
+    const copyButton = screen.getByRole("button", {
+      name: "Copiar repetidas",
+    }) as HTMLButtonElement;
+
+    fireEvent.click(copyButton);
+
+    expect(await screen.findByRole("button", { name: "Copiando…" })).toBeTruthy();
+    expect(copyButton.disabled).toBe(true);
+    expect(
+      (
+        screen.getByRole("button", {
+          name: "Registrar entrega de una repetida de Argentina 7",
+        }) as HTMLButtonElement
+      ).disabled,
+    ).toBe(false);
+    fireEvent.click(copyButton);
+    expect(copyText).toHaveBeenCalledTimes(1);
+
+    if (!resolveCopyRef.current) {
+      throw new Error("Copy promise was not started.");
+    }
+
+    resolveCopyRef.current({ status: "copied" });
+
+    expect(await screen.findByRole("button", { name: "Copiar repetidas" })).toBeTruthy();
+  });
+
+  it("shows manual copy text when duplicate clipboard fallback cannot copy", async () => {
+    const collection = setCopies(createEmptyCollection(), argentina7, 2);
+
+    render(
+      <CollectionViews
+        mode="duplicates"
+        createRepository={() => fakeRepository(collection)}
+        copyText={async () => ({ status: "manual", text: "Argentina: 7" })}
+      />,
+    );
+
+    await screen.findByRole("heading", { name: "1 copias repetidas" });
+    fireEvent.click(screen.getByRole("button", { name: "Copiar repetidas" }));
+
+    expect(
+      await screen.findByText(
+        "No se pudo copiar automáticamente. Seleccioná el texto y copiá.",
+      ),
+    ).toBeTruthy();
+    expect(screen.getByDisplayValue("Argentina: 7")).toBeTruthy();
+  });
+
+  it("shows a retryable error when copying duplicate text fails", async () => {
+    const copyText = vi
+      .fn<(text: string) => Promise<CopyTextResult>>()
+      .mockRejectedValueOnce(new Error("clipboard"))
+      .mockResolvedValueOnce({ status: "copied" });
+    const collection = setCopies(createEmptyCollection(), argentina7, 2);
+
+    render(
+      <CollectionViews
+        mode="duplicates"
+        createRepository={() => fakeRepository(collection)}
+        copyText={copyText}
+      />,
+    );
+
+    await screen.findByRole("heading", { name: "1 copias repetidas" });
+    fireEvent.click(screen.getByRole("button", { name: "Copiar repetidas" }));
+
+    expect((await screen.findByRole("alert")).textContent).toContain(
+      "No se pudo copiar la lista de repetidas.",
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Copiar repetidas" }));
+    expect(await waitForMockCallCount(copyText, 2)).toBeTruthy();
+    expect(
+      await screen.findByText(
+        "Lista de repetidas copiada. Ya podés pegarla en WhatsApp.",
+      ),
+    ).toBeTruthy();
   });
 
   it("filters duplicates by section without reloading", async () => {
@@ -817,6 +973,55 @@ describe("CollectionViews duplicates", () => {
     expect(getCopies(save.mock.calls[0][0], argentina7)).toBe(2);
   });
 
+  it("updates copied duplicate text after deliver, undo and quantity correction", async () => {
+    const save = vi.fn<CollectionRepository["save"]>().mockResolvedValue(undefined);
+    const copyText = vi
+      .fn<(text: string) => Promise<CopyTextResult>>()
+      .mockResolvedValue({ status: "copied" });
+    const collection = setCopies(createEmptyCollection(), argentina7, 3);
+
+    render(
+      <CollectionViews
+        mode="duplicates"
+        createRepository={() => fakeRepository(collection, save)}
+        copyText={copyText}
+      />,
+    );
+
+    await screen.findByRole("heading", { name: "2 copias repetidas" });
+    fireEvent.click(screen.getByRole("button", { name: "Copiar repetidas" }));
+    expect(await waitForMockCallCount(copyText, 1)).toBeTruthy();
+    expect(copyText.mock.calls[0][0]).toContain("Argentina: 7 (x2)");
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Registrar entrega de una repetida de Argentina 7",
+      }),
+    );
+    expect(await screen.findByText("Argentina 7 actualizada.")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Copiar repetidas" }));
+    expect(await waitForMockCallCount(copyText, 2)).toBeTruthy();
+    expect(copyText.mock.calls[1][0]).toContain("Argentina: 7");
+    expect(copyText.mock.calls[1][0]).not.toContain("(x1)");
+
+    fireEvent.click(screen.getByRole("button", { name: "Deshacer" }));
+    expect(await screen.findByText("Cambio deshecho.")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Copiar repetidas" }));
+    expect(await waitForMockCallCount(copyText, 3)).toBeTruthy();
+    expect(copyText.mock.calls[2][0]).toContain("Argentina: 7 (x2)");
+
+    openQuantityEditor("Argentina 7");
+    fireEvent.change(screen.getByLabelText("Cantidad total registrada"), {
+      target: { value: "4" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Guardar cantidad" }));
+    expect(await screen.findByText("Argentina 7 corregida.")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Copiar repetidas" }));
+    expect(await waitForMockCallCount(copyText, 4)).toBeTruthy();
+    expect(copyText.mock.calls[3][0]).toContain("Argentina: 7 (x3)");
+    expect(save).toHaveBeenCalledTimes(3);
+  });
+
   it("removes the position from duplicates when delivering leaves one copy", async () => {
     const save = vi.fn<CollectionRepository["save"]>().mockResolvedValue(undefined);
     const collection = setCopies(createEmptyCollection(), argentina7, 2);
@@ -839,6 +1044,7 @@ describe("CollectionViews duplicates", () => {
     expect(screen.getByRole("heading", { name: "0 copias repetidas" })).toBeTruthy();
     expect(screen.getByText("No tenés figuritas repetidas.")).toBeTruthy();
     expect(screen.queryByText("Argentina 7")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Copiar repetidas" })).toBeNull();
     expect(getCopies(save.mock.calls[0][0], argentina7)).toBe(1);
   });
 
@@ -1037,6 +1243,7 @@ describe("CollectionViews duplicates", () => {
 
     expect(await screen.findByText("Ahora tenés 1 copia y ninguna repetida.")).toBeTruthy();
     expect(screen.getByText("No tenés figuritas repetidas.")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Copiar repetidas" })).toBeNull();
     expect(getCopies(save.mock.calls[0][0], argentina7)).toBe(1);
   });
 

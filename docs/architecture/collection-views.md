@@ -11,8 +11,8 @@ esas posiciones sin entrar al álbum completo.
 `/missing` ayuda a identificar posiciones faltantes. `/duplicates` ayuda a
 identificar copias disponibles para cambio.
 
-`/missing` sigue siendo una vista de consulta sobre la colección ya cargada para
-cantidades y filtros: las acciones `Compartir PDF` y `Copiar como texto` no
+`/missing` y `/duplicates` siguen siendo vistas de consulta sobre la colección
+ya cargada para cantidades y filtros: las acciones de compartir o copiar no
 escriben datos ni cambian el resultado visible.
 
 ## Carga y error
@@ -87,6 +87,17 @@ domain/collection/missing-list-message.ts
 texto plano determinista, compatible con WhatsApp u otras aplicaciones. No recibe
 `CollectionState`, no accede a React, IndexedDB, navegador ni Clipboard API. Para
 álbum completo devuelve `¡Álbum completo! Ya tenemos las 980 figuritas.`.
+
+Para copiar repetidas como texto existe:
+
+```text
+domain/collection/duplicate-list-message.ts
+```
+
+`formatDuplicateListMessage` consume una `DuplicateCollectionView` ya derivada y
+devuelve texto plano determinista. Respeta el orden canónico, agrupa por sección
+y usa copias disponibles para cambio: cantidad total `2` se imprime sin sufijo,
+cantidad total `3` se imprime como `(x2)` y cantidad total `4` como `(x3)`.
 
 ## Acciones de faltantes
 
@@ -194,6 +205,39 @@ La vista distingue dos métricas:
 
 Ejemplo: `Argentina 7` con 4 copias cuenta como 1 posición con repetidas y 3
 copias repetidas.
+
+Cuando existen repetidas, `/duplicates` muestra `Copiar repetidas` en el resumen
+global. La acción copia un mensaje de texto listo para pegar en WhatsApp, por
+ejemplo:
+
+```text
+Tengo estas figuritas repetidas para cambiar:
+
+PANINI: 00
+FWC: 3, 8
+
+Grupo J
+Argentina: 2, 7 (x2), 14
+```
+
+El texto siempre representa copias realmente disponibles para intercambio, no la
+cantidad física total. No muestra `(x1)`. Igual que `Copiar como texto` en
+faltantes, copia la lista completa de repetidas de la colección cargada e ignora
+el filtro visible; el filtro solo cambia lo que se ve en pantalla.
+
+Copiar repetidas usa el mismo helper de portapapeles que faltantes. No vuelve a
+leer IndexedDB, no llama a `CollectionRepository.save()`, no modifica
+cantidades, no abre WhatsApp y no confirma envío. Si Clipboard API falla y el
+fallback automático tampoco puede copiar, la vista muestra el texto en un campo
+seleccionable. Ante un error real muestra:
+
+```text
+No se pudo copiar la lista de repetidas.
+```
+
+El feedback se anuncia con regiones accesibles. Mientras la copia está en curso
+solo se evita una segunda copia simultánea; leer la lista, filtrar y las acciones
+de corrección de repetidas mantienen su comportamiento habitual.
 
 Cada posición con repetidas ofrece dos acciones distintas:
 

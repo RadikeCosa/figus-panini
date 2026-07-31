@@ -16,6 +16,7 @@ import {
   buildMissingListDocument,
   type MissingListDocument,
 } from "../../domain/collection/missing-list-document";
+import { formatDuplicateListMessage } from "../../domain/collection/duplicate-list-message";
 import { formatMissingListMessage as formatDefaultMissingListMessage } from "../../domain/collection/missing-list-message";
 import {
   getCopies,
@@ -49,7 +50,7 @@ type MissingListExportState =
   | { status: "generating" }
   | { status: "downloaded"; message: string }
   | { status: "error"; message: string };
-type MissingListCopyState =
+type ListCopyState =
   | { status: "idle" }
   | { status: "copying" }
   | { status: "copied"; message: string }
@@ -395,6 +396,7 @@ function CollectionViewReady({
       saveState={saveState}
       selectedSection={selectedSection}
       onCorrectQuantity={onCorrectDuplicateQuantity}
+      onCopyText={onCopyText}
       onDeliverCopy={onDeliverDuplicateCopy}
       onSelectSection={onSelectSection}
       onUndo={onUndoDuplicateAction}
@@ -432,7 +434,7 @@ function MissingView({
   const [exportState, setExportState] = useState<MissingListExportState>({
     status: "idle",
   });
-  const [copyState, setCopyState] = useState<MissingListCopyState>({
+  const [copyState, setCopyState] = useState<ListCopyState>({
     status: "idle",
   });
   const exportInProgressRef = useRef(false);
@@ -584,7 +586,7 @@ function MissingView({
 function MissingListCopyStatus({
   copyState,
 }: {
-  copyState: MissingListCopyState;
+  copyState: ListCopyState;
 }) {
   if (copyState.status === "idle" || copyState.status === "copying") {
     return null;
@@ -668,6 +670,7 @@ function DuplicatesView({
   saveState,
   selectedSection,
   onCorrectQuantity,
+  onCopyText,
   onDeliverCopy,
   onSelectSection,
   onUndo,
@@ -677,6 +680,7 @@ function DuplicatesView({
   saveState: SaveState;
   selectedSection: string;
   onCorrectQuantity: (position: PositionRef, copies: number) => void;
+  onCopyText: (text: string) => Promise<CopyTextResult>;
   onDeliverCopy: (position: PositionRef) => void;
   onSelectSection: (section: string) => void;
   onUndo: () => void;
@@ -685,6 +689,45 @@ function DuplicatesView({
   const sections = filterSections(view.sections, selectedSection);
   const isFiltered = selectedSection !== ALL_SECTIONS;
   const isSaving = saveState === "saving";
+  const [copyState, setCopyState] = useState<ListCopyState>({
+    status: "idle",
+  });
+  const copyInProgressRef = useRef(false);
+  const isCopying = copyState.status === "copying";
+
+  const copyDuplicateList = useCallback(async () => {
+    if (copyInProgressRef.current || view.duplicateCopyCount === 0) {
+      return;
+    }
+
+    copyInProgressRef.current = true;
+    setCopyState({ status: "copying" });
+
+    try {
+      const text = formatDuplicateListMessage(view);
+      const result = await onCopyText(text);
+
+      if (result.status === "manual") {
+        setCopyState({
+          status: "manual",
+          message: "No se pudo copiar automáticamente. Seleccioná el texto y copiá.",
+          text: result.text,
+        });
+      } else {
+        setCopyState({
+          status: "copied",
+          message: "Lista de repetidas copiada. Ya podés pegarla en WhatsApp.",
+        });
+      }
+    } catch {
+      setCopyState({
+        status: "error",
+        message: "No se pudo copiar la lista de repetidas.",
+      });
+    } finally {
+      copyInProgressRef.current = false;
+    }
+  }, [onCopyText, view]);
 
   return (
     <section aria-labelledby="duplicates-title" className="space-y-4">
@@ -699,7 +742,23 @@ function DuplicatesView({
         <p className="mt-1 text-sm text-zinc-600">
           Las copias repetidas son las que sobran después de la primera.
         </p>
+        {view.duplicateCopyCount > 0 ? (
+          <div className="mt-4">
+            <button
+              className="min-h-11 rounded-md border border-amber-800 px-4 py-2 text-sm font-semibold text-amber-900 outline-offset-2 transition hover:bg-amber-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-800 disabled:cursor-not-allowed disabled:border-zinc-300 disabled:bg-zinc-100 disabled:text-zinc-500"
+              type="button"
+              disabled={isCopying}
+              onClick={() => {
+                void copyDuplicateList();
+              }}
+            >
+              {isCopying ? "Copiando…" : "Copiar repetidas"}
+            </button>
+          </div>
+        ) : null}
       </SummaryPanel>
+
+      <MissingListCopyStatus copyState={copyState} />
 
       <SectionFilter
         label="Filtrar repetidas por sección"

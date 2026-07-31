@@ -13,6 +13,7 @@
 - Copiar la lista completa de faltantes como texto para pegarla luego en
   WhatsApp u otra aplicación.
 - Consultar repetidas.
+- Copiar la lista completa de repetidas disponibles para cambio como texto.
 - Registrar la entrega de una repetida durante un intercambio.
 - Exportar respaldo técnico.
 - Restaurar respaldo técnico validado.
@@ -78,6 +79,16 @@ no confirma que otra aplicación haya recibido el texto.
 ### Consultar repetidas
 
 Pedro revisa las figuritas con copias extras disponibles para cambio.
+
+### Copiar lista de repetidas como texto
+
+Pedro puede copiar la lista completa de repetidas disponibles para cambio como
+texto simple, en orden canónico y sin depender del filtro visible. El sufijo
+`(xN)` representa copias repetidas disponibles, no cantidad total: una cantidad
+total `3` se copia como `(x2)`.
+
+La acción no modifica cantidades, no guarda datos, no abre WhatsApp, no accede a
+contactos y no confirma que otra aplicación haya recibido el texto.
 
 ### Registrar entrega de una repetida
 

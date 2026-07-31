@@ -25,8 +25,9 @@ resolución canónica de sección y número que usa la consulta rápida.
 
 La ruta `/missing` muestra faltantes derivados de la colección persistida y
 permite generar la lista completa como PDF sin modificar cantidades. La ruta
-`/duplicates` muestra repetidas y permite registrar entregas o corregir
-cantidades de esas posiciones.
+`/duplicates` muestra repetidas, permite copiar el texto completo para
+intercambios y permite registrar entregas o corregir cantidades de esas
+posiciones.
 
 La ruta `/backup` permite exportar y restaurar la colección con un contrato JSON
 versionado y validado antes de reemplazar datos.
