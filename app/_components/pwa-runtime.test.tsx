@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  */
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   PwaRuntime,
@@ -15,6 +15,7 @@ import {
 
 afterEach(() => {
   cleanup();
+  vi.useRealTimers();
   vi.restoreAllMocks();
   setNavigatorOnline(true);
   deleteServiceWorkerMock();
@@ -180,15 +181,97 @@ describe("PwaRuntime", () => {
     expect(waiting.postMessage).toHaveBeenCalledWith({ type: "SKIP_WAITING" });
   });
 
-  it("shows an update action when the service worker controller changes before a requested reload", async () => {
+  it("does not show a false update or reload when the first worker takes control", async () => {
+    const reloadPage = vi.fn();
+    const serviceWorker = installServiceWorkerMock();
+
+    render(<PwaRuntime registrationEnabled reloadPage={reloadPage} />);
+
+    await waitFor(() => expect(serviceWorker.register).toHaveBeenCalled());
+    const firstWorker = createServiceWorker();
+    serviceWorker.dispatchControllerChange(firstWorker);
+
+    expect(screen.queryByRole("button", { name: "Actualizar" })).toBeNull();
+    expect(reloadPage).not.toHaveBeenCalled();
+    expect(firstWorker.postMessage).toHaveBeenCalledWith({ type: "CLIENT_READY" });
+  });
+
+  it("reloads a previously controlled client when another client activates an update", async () => {
+    const reloadPage = vi.fn();
+    const serviceWorker = installServiceWorkerMock({ hasController: true });
+
+    render(<PwaRuntime registrationEnabled reloadPage={reloadPage} />);
+
+    await waitFor(() => expect(serviceWorker.register).toHaveBeenCalled());
+    serviceWorker.dispatchControllerChange();
+    serviceWorker.dispatchControllerChange();
+
+    expect(reloadPage).toHaveBeenCalledTimes(1);
+  });
+
+  it("confirms that an already controlled client loaded successfully", async () => {
     const serviceWorker = installServiceWorkerMock({ hasController: true });
 
     render(<PwaRuntime registrationEnabled />);
 
-    await waitFor(() => expect(serviceWorker.register).toHaveBeenCalled());
-    serviceWorker.dispatchControllerChange();
+    await waitFor(() => {
+      expect(serviceWorker.controller?.postMessage).toHaveBeenCalledWith({
+        type: "CLIENT_READY",
+      });
+    });
+  });
 
-    expect(await screen.findByRole("button", { name: "Actualizar" })).toBeTruthy();
+  it("does not poll when the previous worker does not understand CLIENT_READY", async () => {
+    vi.useFakeTimers();
+    const serviceWorker = installServiceWorkerMock({ hasController: true });
+
+    render(<PwaRuntime registrationEnabled />);
+    await act(async () => Promise.resolve());
+
+    expect(serviceWorker.controller?.postMessage).toHaveBeenCalledTimes(1);
+    expect(serviceWorker.controller?.postMessage).toHaveBeenCalledWith({
+      type: "CLIENT_READY",
+    });
+
+    await act(async () => vi.advanceTimersByTimeAsync(CLIENT_READY_TEST_INTERVAL * 2));
+
+    expect(serviceWorker.controller?.postMessage).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps a single negotiated retry while cache cleanup is pending", async () => {
+    vi.useFakeTimers();
+    const serviceWorker = installServiceWorkerMock({ hasController: true });
+
+    render(<PwaRuntime registrationEnabled />);
+    await act(async () => Promise.resolve());
+
+    serviceWorker.dispatchMessage({ type: "CACHE_CLEANUP_PENDING" });
+    serviceWorker.dispatchMessage({ type: "CACHE_CLEANUP_PENDING" });
+
+    await act(async () =>
+      vi.advanceTimersByTimeAsync(CLIENT_READY_TEST_INTERVAL - 1),
+    );
+    expect(serviceWorker.controller?.postMessage).toHaveBeenCalledTimes(1);
+
+    await act(async () => vi.advanceTimersByTimeAsync(1));
+    expect(serviceWorker.controller?.postMessage).toHaveBeenCalledTimes(2);
+
+    await act(async () => vi.advanceTimersByTimeAsync(CLIENT_READY_TEST_INTERVAL));
+    expect(serviceWorker.controller?.postMessage).toHaveBeenCalledTimes(2);
+  });
+
+  it("cancels a pending retry when cache cleanup completes", async () => {
+    vi.useFakeTimers();
+    const serviceWorker = installServiceWorkerMock({ hasController: true });
+
+    render(<PwaRuntime registrationEnabled />);
+    await act(async () => Promise.resolve());
+
+    serviceWorker.dispatchMessage({ type: "CACHE_CLEANUP_PENDING" });
+    serviceWorker.dispatchMessage({ type: "CACHE_CLEANUP_COMPLETE" });
+    await act(async () => vi.advanceTimersByTimeAsync(CLIENT_READY_TEST_INTERVAL));
+
+    expect(serviceWorker.controller?.postMessage).toHaveBeenCalledTimes(1);
   });
 
   it("captures beforeinstallprompt and runs the prompt only after an explicit click", async () => {
@@ -370,6 +453,8 @@ const baseInstallEnvironment: PwaInstallEnvironment = {
   standaloneDisplayMode: false,
 };
 
+const CLIENT_READY_TEST_INTERVAL = 15_000;
+
 function installServiceWorkerMock({
   hasController = false,
   waiting = null,
@@ -380,6 +465,7 @@ function installServiceWorkerMock({
   let updateFoundListener: (() => void) | null = null;
   let stateChangeListener: (() => void) | null = null;
   let controllerChangeListener: (() => void) | null = null;
+  let messageListener: ((event: MessageEvent) => void) | null = null;
   const installing = createServiceWorker("installing");
   installing.addEventListener.mockImplementation(
     (eventName: string, listener: () => void) => {
@@ -398,18 +484,32 @@ function installServiceWorkerMock({
     }),
     update: vi.fn().mockResolvedValue(undefined),
   };
+  const controller: ReturnType<typeof createServiceWorker> | null = hasController
+    ? createServiceWorker()
+    : null;
   const serviceWorker = {
-    controller: hasController ? {} : null,
-    addEventListener: vi.fn((eventName: string, listener: () => void) => {
+    controller,
+    addEventListener: vi.fn((eventName: string, listener: (event: MessageEvent) => void) => {
       if (eventName === "controllerchange") {
-        controllerChangeListener = listener;
+        controllerChangeListener = () => listener(new MessageEvent("controllerchange"));
+      }
+      if (eventName === "message") {
+        messageListener = listener;
       }
     }),
     removeEventListener: vi.fn(),
     register: vi.fn().mockResolvedValue(registration),
     dispatchUpdateFound: () => updateFoundListener?.(),
     dispatchInstallingStateChange: () => stateChangeListener?.(),
-    dispatchControllerChange: () => controllerChangeListener?.(),
+    dispatchControllerChange: (
+      nextController: ReturnType<typeof createServiceWorker> = createServiceWorker(),
+    ) => {
+      serviceWorker.controller = nextController;
+      controllerChangeListener?.();
+    },
+    dispatchMessage: (data: unknown) => {
+      messageListener?.(new MessageEvent("message", { data }));
+    },
     installing,
   };
 

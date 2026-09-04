@@ -18,14 +18,20 @@ worker propio, una librería de PWA o una caché dinámica más amplia.
 
 Usar un service worker propio en `public/sw.js` con:
 
-- precache explícito de rutas principales, manifest e iconos;
+- generación posterior a `next build` desde una plantilla versionada, el
+  `BUILD_ID` y el inventario completo de `.next/static`;
+- precache explícito de rutas principales, manifest, iconos y todos los assets
+  reales de la build;
 - network-first para navegaciones de rutas principales con fallback cacheado sin
   conexión;
-- caché runtime solo para assets locales versionados de Next.js;
+- caché runtime solo como red de seguridad para assets locales compatibles;
 - no cachear payloads RSC de navegación interna de App Router;
-- cachés versionadas con prefijo `figus-pani-`;
-- limpieza de versiones anteriores en `activate`;
-- activación inmediata del nuevo worker y aviso discreto para recargar.
+- cachés versionadas con prefijo `figus-pani-` y sufijo ligado al `BUILD_ID`;
+- registro de clientes anteriores en `activate` y limpieza diferida hasta que
+  todos hayan recargado o se hayan cerrado;
+- primera activación normal y actualizaciones coordinadas: el worker nuevo queda
+  esperando mientras existe una página controlada y sólo usa `skipWaiting()` al
+  recibir la acción explícita `Actualizar`.
 
 Los datos de usuario quedan exclusivamente en IndexedDB y fuera de Cache
 Storage.
@@ -47,15 +53,20 @@ validación de una versión nueva.
 ## Consecuencias
 
 La estrategia es explícita, testeable y fácil de auditar. Cuando se agregue una
-ruta principal nueva habrá que actualizar la lista de precache y sus tests.
+ruta principal nueva habrá que actualizar la configuración estable y sus tests;
+los chunks, CSS, fuentes e imports dinámicos no se mantienen manualmente.
 
-El service worker puede servir el shell offline, pero no convierte rutas no
-visitadas o desconocidas en funcionalidad completa. Las rutas fuera del shell
-deben mostrar una limitación clara si no están disponibles.
+El service worker puede servir el shell completo después de una sola instalación
+online, sin visitar cada superficie. Las rutas fuera del shell deben mostrar una
+limitación clara si no están disponibles.
 
 Cuando hay conexión, las navegaciones del shell intentan red antes de Cache
 Storage. Esto evita que una PWA instalada quede usando indefinidamente HTML viejo
 si una publicación no cambia el contenido de `sw.js`.
 
 Actualizar el service worker no borra IndexedDB, porque la colección no forma
-parte de Cache Storage.
+parte de Cache Storage. Mantener el worker nuevo en `waiting` hasta la acción de
+actualización, junto con la confirmación posterior de cada cliente, evita retirar
+los chunks que todavía usa una página de la build anterior. El estado técnico de
+la transición se persiste en la caché runtime vigente para que la limpieza no
+dependa de que el proceso del service worker permanezca vivo.

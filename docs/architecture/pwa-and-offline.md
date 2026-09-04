@@ -108,11 +108,26 @@ IndexedDB para decidir instalabilidad.
 
 El service worker vive en `../../public/sw.js`.
 
-Usa dos cachés versionadas:
+El archivo servido como `/sw.js` es un artefacto de build generado desde:
 
-- `figus-pani-shell-v3`: rutas principales, manifest e iconos;
-- `figus-pani-runtime-v3`: assets locales versionados de Next.js después de la
-  primera carga.
+- `../../pwa/service-worker.template.js`, plantilla versionada;
+- `../../pwa/offline-config.json`, rutas y assets públicos estables;
+- `../../scripts/generate-service-worker.mjs`, inventario y generación.
+
+El worker concreto no se versiona: `npm run build` ejecuta primero `next build`
+y después lee `.next/BUILD_ID` y recorre `.next/static` para generar
+`public/sw.js`. Next 16.2.10 sirve `public/` desde el directorio del proyecto al
+iniciar `next start`, de modo que el worker generado después de compilar queda
+disponible como `/sw.js` sin ejecutar una segunda build. El script
+`npm run verify:pwa-build` comprueba que el archivo corresponde exactamente a la
+salida vigente.
+
+Usa dos cachés ligadas al `BUILD_ID` real:
+
+- `figus-pani-shell-<BUILD_ID>`: rutas principales, manifest, iconos y todos los
+  archivos reales de `.next/static`;
+- `figus-pani-runtime-<BUILD_ID>`: red de seguridad para assets locales
+  compatibles que aparezcan después del precache.
 
 En `install` precachea explícitamente:
 
@@ -123,10 +138,19 @@ En `install` precachea explícitamente:
 - `/duplicates`;
 - `/backup`;
 - `/manifest.webmanifest`;
-- iconos PWA.
+- iconos PWA;
+- todos los chunks, CSS, fuentes y demás archivos generados bajo `.next/static`.
 
-En `activate` elimina cachés viejas con prefijo `figus-pani-` y conserva solo la
-versión vigente.
+La instalación termina sólo si `cache.addAll` puede obtener la lista completa.
+Si un recurso falta, el worker nuevo no se instala y una versión activa anterior
+no se reemplaza por un shell parcial.
+
+En `activate` identifica las cachés viejas con prefijo `figus-pani-`, pero no las
+elimina mientras puedan existir páginas de esas versiones. Guarda en la caché
+runtime vigente un estado técnico de transición con los nombres obsoletos y los
+IDs de clientes pendientes. No contiene datos de colección. La limpieza se
+completa cuando esos clientes confirman que recargaron bajo el worker vigente o
+cuando `clients.matchAll()` confirma que ya se cerraron.
 
 ## Estrategia de caché
 
@@ -134,7 +158,8 @@ La estrategia separa tres mundos:
 
 - rutas de shell: network-first cuando hay conexión, fallback cacheado sin
   conexión;
-- assets locales: cache-first con guardado runtime después de la primera carga;
+- assets locales: primero el precache completo del build y luego cache-first;
+  runtime caching queda sólo como red de seguridad;
 - navegación interna de App Router: las solicitudes RSC no se cachean en el
   service worker; deben llegar a la versión activa de Next.js;
 - datos de usuario: únicamente IndexedDB, nunca Cache Storage.
@@ -160,7 +185,8 @@ cacheada, para evitar que una instalación siga usando HTML viejo.
 
 ## Rutas disponibles offline
 
-Después de una primera carga online quedan disponibles:
+Después de que termina la primera instalación online quedan disponibles, sin
+necesidad de visitar manualmente cada superficie:
 
 - `/`;
 - `/album`;
@@ -169,18 +195,18 @@ Después de una primera carga online quedan disponibles:
 - `/duplicates`;
 - `/backup`.
 
-También quedan disponibles los assets locales y las solicitudes internas de
-navegación de Next.js necesarias para esas rutas cuando ya fueron solicitados al
-menos una vez.
+También quedan disponibles todos los assets locales generados por esa build. Las
+solicitudes RSC no se persisten. En Next.js 16.2.10, si una navegación cliente no
+puede obtener su payload RSC por estar offline, degrada a navegación completa;
+el service worker responde entonces con el HTML y los assets precacheados.
 
 `/missing` forma parte del shell offline. La vista lee la colección desde
 IndexedDB y puede revisar faltantes sin conexión después de la primera carga
-online. La generación del PDF usa un generador cargado dinámicamente; el chunk de
-`pdf-lib` se guarda en la caché runtime solo después de haber sido solicitado al
-menos una vez. Por eso, generar la lista sin conexión está cubierto cuando Pedro
-ya abrió `Compartir PDF` con conexión o cuando el chunk quedó previamente en
-Cache Storage. El primer intento de generación sin conexión, antes de descargar
-ese chunk, no está garantizado.
+online. La generación del PDF usa un generador cargado dinámicamente, pero el
+inventario incluye automáticamente su loader, el chunk que contiene `pdf-lib` y
+cualquier dependencia emitida dentro de `.next/static`. Por eso el primer uso de
+`Compartir PDF` también queda preparado durante el precache inicial, sin
+hardcodear nombres de chunks ni generar antes un PDF online.
 
 ## IndexedDB
 
@@ -194,8 +220,7 @@ Esto implica:
 - exportar backup offline lee la colección desde IndexedDB y genera un archivo
   local;
 - generar el PDF de faltantes offline usa la colección ya cargada desde
-  IndexedDB y produce un archivo local cuando el chunk del generador ya está
-  disponible;
+  IndexedDB y los chunks preparados durante la instalación;
 - restaurar backup offline lee el archivo elegido por el usuario y reemplaza
   IndexedDB mediante `CollectionRepository.save()`;
 - actualizar el service worker no borra la colección.
@@ -205,22 +230,41 @@ descargar usa APIs locales del navegador y no escribe datos de colección.
 
 ## Actualización
 
-La actualización elegida es activación inmediata segura:
+La actualización distingue primera instalación de reemplazo de una versión:
 
 1. el browser detecta una nueva versión de `/sw.js`;
 2. el worker nuevo instala su caché versionada;
-3. `skipWaiting()` permite activar la versión nueva sin esperar otra apertura;
-4. `activate` limpia cachés viejas;
-5. `clients.claim()` toma control de las páginas abiertas;
-6. el runtime muestra un aviso discreto para recargar cuando detecta una versión
+3. en la primera instalación, como no existe un worker activo anterior, el ciclo
+   normal del navegador permite activarlo sin interacción;
+4. si ya existe una versión controlando la página, el nuevo worker queda
+   `waiting` y conserva intactos los cachés anteriores;
+5. el runtime muestra un aviso discreto para recargar cuando detecta una versión
    nueva con una página ya controlada, incluyendo workers que ya estaban en
    `registration.waiting` al montar;
-7. al tocar `Actualizar`, si hay un worker esperando, la UI le envía
-   `SKIP_WAITING`; cuando ocurre `controllerchange`, recarga una sola vez.
+6. al tocar `Actualizar`, la UI le envía `SKIP_WAITING`;
+7. durante `activate`, el worker registra qué clientes todavía pueden estar
+   ejecutando la versión anterior y llama a `clients.claim()`, sin borrar todavía
+   sus cachés;
+8. cuando ocurre `controllerchange`, cada cliente viejo recarga una sola vez;
+9. la página ya cargada bajo el worker vigente envía una vez `CLIENT_READY`. Si
+   todavía quedan clientes anteriores, el worker responde
+   `CACHE_CLEANUP_PENDING` y el cliente agenda un único reintento; cada respuesta
+   pendiente rearma ese mismo seguimiento, sin timers paralelos. Cuando el worker
+   responde `CACHE_CLEANUP_COMPLETE`, cancela cualquier reintento. Un worker
+   anterior que no entiende el protocolo no responde y, por lo tanto, nunca
+   inicia polling;
+10. recién cuando todos los IDs anteriores confirmaron la nueva versión o ya no
+    aparecen en `clients.matchAll()`, el worker elimina todas las cachés obsoletas.
 
-Trade-off: Pedro recibe la versión nueva rápido y las cachés viejas no quedan
-indefinidamente. El costo es que una pestaña abierta puede necesitar recarga
-manual para usar todos los assets nuevos.
+El estado de transición queda persistido en Cache Storage para sobrevivir a la
+terminación y reinicio del proceso del service worker. Así una página vieja
+conserva sus chunks aunque otra pestaña recargue antes. Cerrar un cliente viejo
+deja de hacerlo bloqueante; la eliminación efectiva ocurre en la siguiente
+confirmación de un cliente vigente. Si no queda ninguno abierto, las cachés
+anteriores pueden permanecer temporalmente y se limpian en la siguiente apertura
+controlada por esta versión. Esta retención es deliberada y segura. En una
+primera instalación sin cachés anteriores no se crea una transición ni se fuerza
+una recarga.
 
 ## Estado offline
 
@@ -263,12 +307,12 @@ incremento se verifican:
 - ayuda de menú para Android Chromium cuando no hay evento instalable;
 - ocultamiento de invitaciones en modo standalone;
 - primera carga online;
+- precache completo sin visitar manualmente las demás rutas;
 - navegación y recarga offline de rutas principales;
 - edición de colección offline;
 - entrada rápida offline;
 - faltantes y repetidas offline;
-- generación de PDF de faltantes offline después de haber cargado previamente el
-  chunk dinámico del generador;
+- primer uso de generación de PDF de faltantes offline;
 - exportación y restauración offline;
 - actualización del service worker sin borrar IndexedDB;
 - consola sin errores ni warnings relevantes.
@@ -282,15 +326,16 @@ deben validarse por separado porque no exponen la misma API de instalación.
 `/album` es una ruta dinámica en el build de Next.js. El service worker cachea la
 ruta base `/album` durante la primera visita online y la actualiza en
 navegaciones posteriores con conexión. Una nueva versión del service worker
-vuelve a instalar el shell y limpia respuestas de cachés antiguas.
+vuelve a instalar el shell y limpia las respuestas antiguas cuando ya no quedan
+clientes de la versión anterior.
 Las solicitudes RSC usadas por la navegación cliente de App Router no se guardan
 en Cache Storage porque son payloads internos dependientes de la versión y el
-estado del router.
+estado del router. El fallback a navegación completa de Next.js 16.2.10 forma
+parte del smoke requerido al actualizar Next.
 
-La generación del PDF de faltantes depende de un chunk dinámico de Next.js. El
-service worker lo cachea como asset local de runtime después de su primera
-solicitud. Si la primera acción `Compartir PDF` ocurre sin conexión antes de
-esa solicitud, el navegador puede no tener el generador disponible.
+La garantía empieza cuando la instalación del worker completó su precache. Como
+en cualquier PWA, cerrar el navegador antes de que termine la instalación puede
+dejar la preparación pendiente hasta la próxima apertura online.
 
 Recargas directas offline de rutas principales están cubiertas. En `/album`, el
 query `section` se preserva como parte de la URL visible y se resuelve en el
@@ -308,12 +353,14 @@ se eligió un worker propio porque el alcance es pequeño y evita dependencias o
 configuración webpack adicional.
 
 Precache explícito frente a caché dinámica amplia:
-se eligió precache explícito para no guardar solicitudes inesperadas ni datos
-del usuario. El costo es mantener la lista cuando cambien las rutas principales.
+se eligió precache explícito generado desde la salida real para no guardar
+solicitudes inesperadas ni datos del usuario. Las rutas estables se mantienen a
+mano; los hashes y archivos de Next.js se inventarían automáticamente.
 
-Actualización inmediata frente a próxima apertura:
-se eligió activación inmediata con aviso de recarga para limpiar versiones
-viejas rápido. El costo es que una pestaña abierta puede requerir recarga.
+Actualización inmediata frente a activación coordinada:
+se conserva activación explícita mediante el aviso de recarga. El worker no usa
+`skipWaiting()` durante `install`; sólo responde al mensaje `SKIP_WAITING` de la
+acción `Actualizar`.
 
 Network-first para shell frente a cache-first:
 se eligió intentar red en navegaciones de shell para que una PWA instalada reciba
@@ -322,8 +369,9 @@ es una navegación online levemente más dependiente de red, conservando fallbac
 offline cacheado.
 
 Rutas completas offline frente a fallback limitado:
-se cachean las rutas del MVP, assets locales y navegación interna de App Router.
-Para rutas no cubiertas se muestra un mensaje claro en vez de simular contenido.
+se cachean las rutas del MVP y todos los assets locales de la build. Los RSC no
+se persisten. Para rutas no cubiertas se muestra un mensaje claro en vez de
+simular contenido.
 
 Indicador offline frente a funcionamiento silencioso:
 se agregó un aviso breve porque ayuda a entender que los datos siguen locales.
