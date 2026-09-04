@@ -94,10 +94,18 @@ export function isRunningStandalone(environment: PwaInstallEnvironment) {
 
 type PwaRuntimeProps = {
   registrationEnabled?: boolean;
+  reloadPage?: () => void;
 };
+
+const CLIENT_READY_INTERVAL_MS = 15_000;
+
+function reloadCurrentPage() {
+  window.location.reload();
+}
 
 export function PwaRuntime({
   registrationEnabled = shouldRegisterServiceWorker(),
+  reloadPage = reloadCurrentPage,
 }: PwaRuntimeProps) {
   const [isOffline, setIsOffline] = useState(false);
   const [updateAvailable, setUpdateAvailable] = useState(false);
@@ -110,6 +118,7 @@ export function PwaRuntime({
   const serviceWorkerRegistrationRef = useRef<ServiceWorkerRegistration | null>(null);
   const waitingWorkerRef = useRef<ServiceWorker | null>(null);
   const updateReloadRequestedRef = useRef(false);
+  const reloadTriggeredRef = useRef(false);
 
   useEffect(() => {
     if (typeof navigator === "undefined") {
@@ -136,6 +145,62 @@ export function PwaRuntime({
     }
 
     let active = true;
+    let cleanupComplete = false;
+    const controlledBeforeRegistration = Boolean(navigator.serviceWorker.controller);
+    let readyController = navigator.serviceWorker.controller;
+    let clientReadyTimer: number | null = null;
+
+    function notifyClientReady() {
+      if (
+        !cleanupComplete &&
+        readyController &&
+        navigator.serviceWorker.controller === readyController
+      ) {
+        readyController.postMessage({ type: "CLIENT_READY" });
+      }
+    }
+
+    function reloadOnce() {
+      if (reloadTriggeredRef.current) {
+        return;
+      }
+
+      reloadTriggeredRef.current = true;
+      reloadPage();
+    }
+
+    function cancelClientReadyRetry() {
+      if (clientReadyTimer === null) {
+        return;
+      }
+
+      window.clearTimeout(clientReadyTimer);
+      clientReadyTimer = null;
+    }
+
+    function scheduleClientReadyRetry() {
+      if (cleanupComplete) {
+        return;
+      }
+
+      cancelClientReadyRetry();
+      clientReadyTimer = window.setTimeout(() => {
+        clientReadyTimer = null;
+        notifyClientReady();
+      }, CLIENT_READY_INTERVAL_MS);
+    }
+
+    function handleServiceWorkerMessage(event: MessageEvent) {
+      if (event.data?.type === "CACHE_CLEANUP_PENDING") {
+        scheduleClientReadyRetry();
+        return;
+      }
+
+      if (event.data?.type === "CACHE_CLEANUP_COMPLETE") {
+        cleanupComplete = true;
+        cancelClientReadyRetry();
+      }
+    }
 
     function markUpdateAvailable(worker: ServiceWorker | null) {
       if (!navigator.serviceWorker.controller) {
@@ -147,14 +212,13 @@ export function PwaRuntime({
     }
 
     function handleControllerChange() {
-      if (updateReloadRequestedRef.current) {
-        window.location.reload();
+      if (updateReloadRequestedRef.current || controlledBeforeRegistration) {
+        reloadOnce();
         return;
       }
 
-      if (navigator.serviceWorker.controller) {
-        setUpdateAvailable(true);
-      }
+      readyController = navigator.serviceWorker.controller;
+      notifyClientReady();
     }
 
     async function registerServiceWorker() {
@@ -173,6 +237,8 @@ export function PwaRuntime({
         if (registration.waiting) {
           markUpdateAvailable(registration.waiting);
         }
+
+        notifyClientReady();
 
         registration.addEventListener("updatefound", () => {
           const installingWorker = registration.installing;
@@ -199,15 +265,18 @@ export function PwaRuntime({
 
     void registerServiceWorker();
     navigator.serviceWorker.addEventListener("controllerchange", handleControllerChange);
+    navigator.serviceWorker.addEventListener("message", handleServiceWorkerMessage);
 
     return () => {
       active = false;
+      cancelClientReadyRetry();
       navigator.serviceWorker.removeEventListener(
         "controllerchange",
         handleControllerChange,
       );
+      navigator.serviceWorker.removeEventListener("message", handleServiceWorkerMessage);
     };
-  }, [registrationEnabled]);
+  }, [registrationEnabled, reloadPage]);
 
   useEffect(() => {
     const environmentTimer = window.setTimeout(() => {
@@ -259,7 +328,10 @@ export function PwaRuntime({
       return;
     }
 
-    window.location.reload();
+    if (!reloadTriggeredRef.current) {
+      reloadTriggeredRef.current = true;
+      reloadPage();
+    }
   }
 
   const runningStandalone =

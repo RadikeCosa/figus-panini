@@ -4,8 +4,10 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "next build && node scripts/generate-service-worker.mjs",
     "test": "vitest run",
+    "test:pwa": "vitest run pwa/offline-config.test.ts scripts/generate-service-worker.test.ts app/_components/pwa-runtime.test.tsx",
+    "verify:pwa-build": "node scripts/generate-service-worker.mjs --check",
     "start": "next start",
     "lint": "eslint"
   },

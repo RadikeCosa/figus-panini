@@ -1,21 +1,10 @@
-export const PWA_CACHE_PREFIX = "figus-pani";
-export const PWA_CACHE_VERSION = "v3";
+import offlineConfig from "./offline-config.json";
 
-export const PWA_SHELL_ROUTES = [
-  "/",
-  "/album",
-  "/quick-entry",
-  "/missing",
-  "/duplicates",
-  "/backup",
-] as const;
+export const PWA_CACHE_PREFIX = offlineConfig.cachePrefix;
 
-export const PWA_STATIC_ASSETS = [
-  "/manifest.webmanifest",
-  "/icons/icon-192.png",
-  "/icons/icon-512.png",
-  "/icons/maskable-512.png",
-] as const;
+export const PWA_SHELL_ROUTES = offlineConfig.shellRoutes;
+
+export const PWA_STATIC_ASSETS = offlineConfig.staticAssets;
 
 export const PWA_PRECACHED_URLS = [...PWA_SHELL_ROUTES, ...PWA_STATIC_ASSETS] as const;
 
